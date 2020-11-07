@@ -1,2 +1,2 @@
-# quick_event_server
+# Quick Event server
 Server side application for university project 
