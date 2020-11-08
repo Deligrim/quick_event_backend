@@ -2,6 +2,8 @@
 
 The REST API to the Quick Event app is described below.
 
+# Event APIs:
+
 ## Adding an event that will be displayed in the feed.
 
 `POST /api/v1/event/`
@@ -14,14 +16,14 @@ The REST API to the Quick Event app is described below.
 4. `endDateOfEvent` - End date of event (date with time in ISO format with UTC mark). Must be later than the start date. Must be equal to the start date if the event does not extend in time.
 5. `location` - Address of event (2..100 chars)
 6. `kind` - type of event, must be one of list:
-    * `other`,
-    * `sport`,
-    * `culture`,
-    * `youth`,
-    * `concert`,
-    * `theatre`,
-    * `contest`,
-    * `festival`,
+    * `other`
+    * `sport`
+    * `culture`
+    * `youth`
+    * `concert`
+    * `theatre`
+    * `contest`
+    * `festival`
     * `stock`
 7. `thumbnail` - image file in jpg or png format. Will be reduced if more than 1024 pixels on one of the sides. Must be smaller than 5 mb.
 
