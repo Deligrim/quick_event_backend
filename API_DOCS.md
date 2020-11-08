@@ -30,7 +30,7 @@ The REST API to the Quick Event app is described below.
 #### Request in curl:
 
 ```
-curl --location --request POST 'http://localhost:4848/api/v1/event/' \
+curl --location --request POST 'https://qevent.slar.ru/api/v1/event/' \
 --form 'title=Событие Ноябрьска' \
 --form 'description=Уже совсем скоро будет главное событие города - 
 запуск мобильного приложения, собирающие все события города
@@ -81,7 +81,7 @@ curl --location --request POST 'http://localhost:4848/api/v1/event/' \
 
 #### Request in curl:
 
-`curl --location --request GET 'http://localhost:4848/api/v1/event/1'`
+`curl --location --request GET 'https://qevent.slar.ru/api/v1/event/1'`
 
 #### Responce in JSON:
 
@@ -99,7 +99,7 @@ curl --location --request POST 'http://localhost:4848/api/v1/event/' \
         "endDateOfEvent": "2020-12-12T10:20:30.000Z",
         "location": "Ноябрьск, Россия",
         "kind": "culture",
-        "imageURL": "http://localhost:4848/storage/images/7e92eba037ad2d2b/thumbnail_187618.jpg"
+        "imageURL": "https://qevent.slar.ru/storage/images/7e92eba037ad2d2b/thumbnail_187618.jpg"
     }
 }
 ```
@@ -120,7 +120,7 @@ curl --location --request POST 'http://localhost:4848/api/v1/event/' \
 
 #### Request in curl:
 
-`curl --location --request GET 'http://localhost:4848/api/v1/event/'`
+`curl --location --request GET 'https://qevent.slar.ru/api/v1/event/'`
 
 #### Responce in JSON:
 
@@ -137,7 +137,7 @@ curl --location --request POST 'http://localhost:4848/api/v1/event/' \
             "startDateOfEvent": "2020-10-28T10:20:30.000Z",
             "endDateOfEvent": "2020-12-01T10:20:30.000Z",
             "kind": "culture",
-            "imageURL": "http://localhost:4848/storage/images/50add274a1654e26/thumbnail_858819.jpg"
+            "imageURL": "https://qevent.slar.ru/storage/images/50add274a1654e26/thumbnail_858819.jpg"
         },
         {
             "status": "pending",
@@ -146,7 +146,7 @@ curl --location --request POST 'http://localhost:4848/api/v1/event/' \
             "startDateOfEvent": "2020-12-10T10:20:30.000Z",
             "endDateOfEvent": "2020-12-12T10:20:30.000Z",
             "kind": "culture",
-            "imageURL": "http://localhost:4848/storage/images/7e92eba037ad2d2b/thumbnail_862781.jpg"
+            "imageURL": "https://qevent.slar.ru/storage/images/7e92eba037ad2d2b/thumbnail_862781.jpg"
         }
     ]
 }
@@ -162,7 +162,7 @@ curl --location --request POST 'http://localhost:4848/api/v1/event/' \
 
 #### Request in curl:
 
-`curl --location --request DELETE 'http://localhost:4848/api/v1/event/1'`
+`curl --location --request DELETE 'https://qevent.slar.ru/api/v1/event/1'`
 
 #### Responce in JSON:
 
