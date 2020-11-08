@@ -42,32 +42,31 @@ curl --location --request POST 'http://localhost:4848/api/v1/event/' \
 
 #### Response in JSON
 
-###### OK 200 (all rigth):
+##### OK 200 (all rigth):
 ```
-    {
-        "success":true,
-        "newEventId":1
-    }
-
-    `newEventId` - id of added event
+{
+    "success":true,
+    "newEventId":1
+}
 ```
+`newEventId` - id of added event
 
-###### 400 Bad Request (for example do not include the location in the request):
+##### 400 Bad Request (for example do not include the location in the request):
 
 ```
-    {
-        "success": false,
-        "code": "badrequest",
-        "msg": "Bad request",
-        "reason": [
-            {
-                "message": "EventNote.location cannot be null",
-                "type": "notNull Violation",
-                "path": "location",
-                "value": null
-            }
-        ]
-    }
+{
+    "success": false,
+    "code": "badrequest",
+    "msg": "Bad request",
+    "reason": [
+        {
+            "message": "EventNote.location cannot be null",
+            "type": "notNull Violation",
+            "path": "location",
+            "value": null
+        }
+    ]
+}
 ```
 
 ## Get specific event
@@ -75,77 +74,78 @@ curl --location --request POST 'http://localhost:4848/api/v1/event/' \
 `GET /api/v1/event/:id`
 
 #### Params
-    * id - identifier of specific event
 
-#### Request
+*id* - identifier of specific event
+
+#### Request in curl
 
 `curl --location --request GET 'http://localhost:4848/api/v1/event/1'`
 
-#### Responce
+#### Responce in JSON
 
-###### OK 200:
+##### OK 200:
 
 ```
-    {
-        "success": true,
-        "eventNote": {
-            "status": "pending",
-            "id": 1,
-            "title": "Событие Ноябрьска",
-            "description": "Уже совсем скоро будет главное событие города - \nзапуск мобильного приложения, собирающие все события города\nв одном месте на официальном уровне.",
-            "startDateOfEvent": "2020-12-10T10:20:30.000Z",
-            "endDateOfEvent": "2020-12-12T10:20:30.000Z",
-            "location": "Ноябрьск, Россия",
-            "kind": "culture",
-            "imageURL": "http://localhost:4848/storage/images/7e92eba037ad2d2b/thumbnail_187618.jpg"
-        }
+{
+    "success": true,
+    "eventNote": {
+        "status": "pending",
+        "id": 1,
+        "title": "Событие Ноябрьска",
+        "description": "Уже совсем скоро будет главное событие города - \nзапуск мобильного приложения, собирающие все события города\nв одном месте на официальном уровне.",
+        "startDateOfEvent": "2020-12-10T10:20:30.000Z",
+        "endDateOfEvent": "2020-12-12T10:20:30.000Z",
+        "location": "Ноябрьск, Россия",
+        "kind": "culture",
+        "imageURL": "http://localhost:4848/storage/images/7e92eba037ad2d2b/thumbnail_187618.jpg"
     }
+}
 ```
-    `status` - must be `pending`, `in progress` and `done` and depends on the current date and the start and end dates of the event
+`status` - must be `pending`, `in progress` and `done` and depends on the current date and the start and end dates of the event
 
-###### 404 Not Found:
+##### 404 Not Found:
 
 ```
-    {
-        "success": false,
-        "msg": "Event not exist!"
-    }
+{
+    "success": false,
+    "msg": "Event not exist!"
+}
 ```
 
 ## Get list of events
 
 `GET /api/v1/event/`
 
-#### Request
+#### Request in curl
 
 `curl --location --request GET 'http://localhost:4848/api/v1/event/'`
 
-#### Responce
+#### Responce in JSON
 
-###### OK 200:
+##### OK 200:
 
 ```
-    {
-        "success": true,
-        "events": [
-            {
-                "status": "in progress",
-                "id": 1,
-                "title": "Выставка #ЯмалРодина",
-                "startDateOfEvent": "2020-10-28T10:20:30.000Z",
-                "endDateOfEvent": "2020-12-01T10:20:30.000Z",
-                "kind": "culture",
-                "imageURL": "http://localhost:4848/storage/images/50add274a1654e26/thumbnail_858819.jpg"
-            },
-            {
-                "status": "pending",
-                "id": 2,
-                "title": "Событие Ноябрьска",
-                "startDateOfEvent": "2020-12-10T10:20:30.000Z",
-                "endDateOfEvent": "2020-12-12T10:20:30.000Z",
-                "kind": "culture",
-                "imageURL": "http://localhost:4848/storage/images/7e92eba037ad2d2b/thumbnail_862781.jpg"
-            }
-        ]
-    }
+{
+    "success": true,
+    "events": [
+        {
+            "status": "in progress",
+            "id": 1,
+            "title": "Выставка #ЯмалРодина",
+            "startDateOfEvent": "2020-10-28T10:20:30.000Z",
+            "endDateOfEvent": "2020-12-01T10:20:30.000Z",
+            "kind": "culture",
+            "imageURL": "http://localhost:4848/storage/images/50add274a1654e26/thumbnail_858819.jpg"
+        },
+        {
+            "status": "pending",
+            "id": 2,
+            "title": "Событие Ноябрьска",
+            "startDateOfEvent": "2020-12-10T10:20:30.000Z",
+            "endDateOfEvent": "2020-12-12T10:20:30.000Z",
+            "kind": "culture",
+            "imageURL": "http://localhost:4848/storage/images/7e92eba037ad2d2b/thumbnail_862781.jpg"
+        }
+    ]
+}
 ```
