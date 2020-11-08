@@ -4,7 +4,7 @@ The REST API to the Quick Event app is described below.
 
 # Event APIs:
 
-## Adding an event that will be displayed in the feed.
+## Adding an event that will be displayed in the feed
 
 `POST /api/v1/event/`
 
@@ -27,7 +27,7 @@ The REST API to the Quick Event app is described below.
     * `stock`
 7. `thumbnail` - image file in jpg or png format. Will be reduced if more than 1024 pixels on one of the sides. Must be smaller than 5 mb.
 
-#### Request in curl
+#### Request in curl:
 
 ```
 curl --location --request POST 'http://localhost:4848/api/v1/event/' \
@@ -42,7 +42,7 @@ curl --location --request POST 'http://localhost:4848/api/v1/event/' \
 --form 'thumbnail=@noyabrsk.jpg'
 ```
 
-#### Response in JSON
+#### Response in JSON:
 
 ##### OK 200 (all rigth):
 ```
@@ -75,15 +75,15 @@ curl --location --request POST 'http://localhost:4848/api/v1/event/' \
 
 `GET /api/v1/event/:id`
 
-#### Params
+#### Params:
 
 *id* - identifier of specific event
 
-#### Request in curl
+#### Request in curl:
 
 `curl --location --request GET 'http://localhost:4848/api/v1/event/1'`
 
-#### Responce in JSON
+#### Responce in JSON:
 
 ##### OK 200:
 
@@ -118,11 +118,11 @@ curl --location --request POST 'http://localhost:4848/api/v1/event/' \
 
 `GET /api/v1/event/`
 
-#### Request in curl
+#### Request in curl:
 
 `curl --location --request GET 'http://localhost:4848/api/v1/event/'`
 
-#### Responce in JSON
+#### Responce in JSON:
 
 ##### OK 200:
 
