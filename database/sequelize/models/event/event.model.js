@@ -6,18 +6,19 @@ const {
 
 class EventNote extends Model {
 
-  static async createEvent(payload, options, cb) {
+  static async createEvent(payload, options) {
     const { Image } = sequelize.models;
     options = require("lodash").defaults(options, {
       transaction: null
     });
     var transaction = options.transaction || (await sequelize.transaction());
     try {
-
-      if (payload.endDateOfEvent < payload.startDateOfEvent)
+      if (!payload.endDateOfEvent instanceof Date || isNaN(payload.endDateOfEvent) ||
+        !payload.startDateOfEvent instanceof Date || isNaN(payload.startDateOfEvent) ||
+        payload.endDateOfEvent < payload.startDateOfEvent)
         throw new ValidationError(null, [
           new ValidationErrorItem(
-            "End date cannot be earlier than start",
+            "End date must be valid and cannot be and earlier than start",
             null,
             "payload.endDateOfEvent",
             payload.endDateOfEvent
@@ -32,6 +33,7 @@ class EventNote extends Model {
           resizeArgs: {
             withoutEnlargement: true,
             height: 1024,
+            width: 1024,
           },
           saveOptions: { transaction }
         });
@@ -45,7 +47,7 @@ class EventNote extends Model {
         kind: payload.kind,
         thumbId: thumbnail.id,
       }, { transaction });
-
+      if (!options.transaction) transaction.commit().catch(() => {/*rollback already call*/ });
       return newEvent;
     }
     catch (e) {
@@ -71,6 +73,7 @@ class EventNote extends Model {
     if (this.constructor._scopeNames.includes("clientView")) {
       attributes.imageURL = attributes.thumb.globalPath;
       delete attributes.thumb;
+      delete attributes.thumbId;
     }
     return attributes
   }
@@ -90,14 +93,14 @@ module.exports = {
           allowNull: false,
           type: DataTypes.STRING,
           validate: {
-            len: [2, 20]
+            len: [2, 40]
           }
         },
         description: {
           allowNull: false,
-          type: DataTypes.STRING,
+          type: DataTypes.TEXT,
           validate: {
-            len: [0, 260]
+            len: [0, 1400]
           }
         },
         startDateOfEvent: {
@@ -112,7 +115,7 @@ module.exports = {
           allowNull: false,
           type: DataTypes.STRING,
           validate: {
-            len: [2, 26]
+            len: [2, 100]
           }
         },
         kind: {
@@ -156,7 +159,7 @@ module.exports = {
       }
     });
     EventNote.addScope("preview", {
-      attributes: ["id", "title", "startDateOfEvent", "kind", "status"]
+      attributes: ["id", "title", "startDateOfEvent", "endDateOfEvent", "kind", "status"]
     });
   },
 };

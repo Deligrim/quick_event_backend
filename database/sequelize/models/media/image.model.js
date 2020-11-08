@@ -51,7 +51,6 @@ class Image extends Model {
     try {
       await fsUtils.createDir(tr ? fullTempLocalPath : fullLocalPath);
       await sharp(img)
-        .limitInputPixels(true)
         .resize(options.resizeArgs)
         .jpeg(options.jpegOptions)
         .toFile(tr ? fullTempLocalPath : fullLocalPath);

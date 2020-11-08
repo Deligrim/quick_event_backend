@@ -1,63 +1,148 @@
 # REST API
 
-The REST API to the example app is described below.
+The REST API to the Quick Event app is described below.
 
-## Get list of Things
+## Adding an event that will be displayed in the feed.
 
-Example of date format (ISO with UTC mark): 2011-04-11T10:20:30Z
+`POST /api/v1/event/`
 
-### Request
+#### Must be perform in multipart/form-data with following fields: 
 
-`GET /thing/`
+1. `title` - Title (2..40 chars)
+2. `description` - Description (0..1400 chars)
+3. `startDateOfEvent` - Start date of event (date with time in ISO format with UTC mark)
+4. `endDateOfEvent` - End date of event (date with time in ISO format with UTC mark). Must be later than the start date. Must be equal to the start date if the event does not extend in time.
+5. `location` - Address of event (2..100 chars)
+6. `kind` - type of event, must be one of list:
+    * `other`,
+    * `sport`,
+    * `culture`,
+    * `youth`,
+    * `concert`,
+    * `theatre`,
+    * `contest`,
+    * `festival`,
+    * `stock`
+7. `thumbnail` - image file in jpg or png format. Will be reduced if more than 1024 pixels on one of the sides. Must be smaller than 5 mb.
 
-    curl -i -H 'Accept: application/json' http://localhost:7000/thing/
+#### Request in curl
 
-### Response
+`curl --location --request POST 'http://localhost:4848/api/v1/event/' \
+--form 'title=Событие Ноябрьска' \
+--form 'description=Уже совсем скоро будет главное событие города - 
+запуск мобильного приложения, собирающие все события города
+в одном месте на официальном уровне.' \
+--form 'startDate=2020-12-10T10:20:30Z' \
+--form 'endDate=2020-12-12T10:20:30Z' \
+--form 'location=Ноябрьск, Россия' \
+--form 'kind=culture' \
+--form 'thumbnail=@noyabrsk.jpg'`
 
-    HTTP/1.1 200 OK
-    Date: Thu, 24 Feb 2011 12:36:30 GMT
-    Status: 200 OK
-    Connection: close
-    Content-Type: application/json
-    Content-Length: 2
+#### Response in JSON
 
-    []
+###### OK 200 (all rigth):
 
-## Create a new Thing
+    `{
+        "success":true,
+        "newEventId":1
+    }`
 
-### Request
+    `newEventId` - id of added event
 
-`POST /thing/`
+###### 400 Bad Request (for example do not include the location in the request):
 
-    curl -i -H 'Accept: application/json' -d 'name=Foo&status=new' http://localhost:7000/thing
+    `
+    {
+        "success": false,
+        "code": "badrequest",
+        "msg": "Bad request",
+        "reason": [
+            {
+                "message": "EventNote.location cannot be null",
+                "type": "notNull Violation",
+                "path": "location",
+                "value": null
+            }
+        ]
+    }
+    `
 
-### Response
+## Get specific event
 
-    HTTP/1.1 201 Created
-    Date: Thu, 24 Feb 2011 12:36:30 GMT
-    Status: 201 Created
-    Connection: close
-    Content-Type: application/json
-    Location: /thing/1
-    Content-Length: 36
+`GET /api/v1/event/:id`
 
-    {"id":1,"name":"Foo","status":"new"}
+#### Params
+    * `:id` - identifier of specific event
 
-## Get a specific Thing
+#### Request
 
-### Request
+`curl --location --request GET 'http://localhost:4848/api/v1/event/1'`
 
-`GET /thing/id`
+#### Responce
 
-    curl -i -H 'Accept: application/json' http://localhost:7000/thing/1
+###### OK 200:
 
-### Response
+    `
+    {
+        "success": true,
+        "eventNote": {
+            "status": "pending",
+            "id": 1,
+            "title": "Событие Ноябрьска",
+            "description": "Уже совсем скоро будет главное событие города - \nзапуск мобильного приложения, собирающие все события города\nв одном месте на официальном уровне.",
+            "startDateOfEvent": "2020-12-10T10:20:30.000Z",
+            "endDateOfEvent": "2020-12-12T10:20:30.000Z",
+            "location": "Ноябрьск, Россия",
+            "kind": "culture",
+            "imageURL": "http://localhost:4848/storage/images/7e92eba037ad2d2b/thumbnail_187618.jpg"
+        }
+    }
+    `
+    `status` - must be `pending`, `in progress` and `done` and depends on the current date and the start and end dates of the event
 
-    HTTP/1.1 200 OK
-    Date: Thu, 24 Feb 2011 12:36:30 GMT
-    Status: 200 OK
-    Connection: close
-    Content-Type: application/json
-    Content-Length: 36
+###### 404 Not Found:
 
-    {"id":1,"name":"Foo","status":"new"}
+    `
+    {
+        "success": false,
+        "msg": "Event not exist!"
+    }
+    `
+
+## Get list of events
+
+`GET /api/v1/event/`
+
+#### Request
+
+`curl --location --request GET 'http://localhost:4848/api/v1/event/'`
+
+#### Responce
+
+###### OK 200:
+
+    `
+    {
+        "success": true,
+        "events": [
+            {
+                "status": "in progress",
+                "id": 1,
+                "title": "Выставка #ЯмалРодина",
+                "startDateOfEvent": "2020-10-28T10:20:30.000Z",
+                "endDateOfEvent": "2020-12-01T10:20:30.000Z",
+                "kind": "culture",
+                "imageURL": "http://localhost:4848/storage/images/50add274a1654e26/thumbnail_858819.jpg"
+            },
+            {
+                "status": "pending",
+                "id": 2,
+                "title": "Событие Ноябрьска",
+                "startDateOfEvent": "2020-12-10T10:20:30.000Z",
+                "endDateOfEvent": "2020-12-12T10:20:30.000Z",
+                "kind": "culture",
+                "imageURL": "http://localhost:4848/storage/images/7e92eba037ad2d2b/thumbnail_862781.jpg"
+            }
+        ]
+    }
+    `

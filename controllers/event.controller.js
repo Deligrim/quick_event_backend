@@ -28,18 +28,26 @@ async function createEvent(req, res, next) {
     const { EventNote } = sequelize.models;
     try {
         await uploadThumb(req, res);
-        const payload = { title: req.body.title, kind: req.body.kind, location: req.body.location, thumbnail: req.file, description: req.body.description, startDateOfEvent: new Date(req.body.startDate), endDateOfEvent: new Date(req.body.endDate) };
-        const eventNote = await EventNote.createEvent(payload, {}, err => {
-            clearTempFiles(req);
-        });
+        const payload = {
+            title: req.body.title,
+            kind: req.body.kind,
+            location: req.body.location,
+            thumbnail: req.file,
+            description: req.body.description,
+            startDateOfEvent: new Date(req.body.startDate),
+            endDateOfEvent: new Date(req.body.endDate)
+        };
+        const eventNote = await EventNote.createEvent(payload, {});
         return res.status(200).json({
             success: true,
-            eventNote
+            newEventId: eventNote.id
         });
     } catch (e) {
         console.log(e);
-        clearTempFiles(req);
         next(e);
+    }
+    finally {
+        clearTempFiles(req);
     }
 }
 
@@ -47,7 +55,7 @@ async function getEventsFeed(req, res, next) {
     const { EventNote } = sequelize.models;
     try {
         const events = await EventNote.scope("preview", "clientView").findAll();
-        //console.log(clips);
+
         if (events)
             return res.status(200).json({
                 success: true,
@@ -72,7 +80,7 @@ async function getEvent(req, res, next) {
                 msg: "id param is required!"
             });
         const eventNote = await EventNote.scope("clientView").findByPk(req.params.id);
-        if (clip)
+        if (eventNote)
             return res.status(200).json({
                 success: true,
                 eventNote
@@ -101,7 +109,7 @@ async function deleteEvent(req, res, next) {
         else {
             return res.status(404).json({
                 success: false,
-                msg: "Clip not exist!"
+                msg: "Event not exist!"
             });
         }
     }
