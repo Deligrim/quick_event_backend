@@ -99,7 +99,7 @@ async function deleteEvent(req, res, next) {
     const { EventNote } = sequelize.models;
     try {
         const id = req.params.id;
-        const eventNote = await EventNote.findOne({ where: { id, authorId: req.user.id } });
+        const eventNote = await EventNote.findByPk(id);
         if (eventNote) {
             await eventNote.destroyEvent();
             return res.status(200).json({

@@ -44,7 +44,7 @@ curl --location --request POST 'http://localhost:4848/api/v1/event/' \
 
 #### Response in JSON:
 
-##### OK 200 (all rigth):
+##### 200 OK (all rigth):
 ```
 {
     "success":true,
@@ -85,7 +85,7 @@ curl --location --request POST 'http://localhost:4848/api/v1/event/' \
 
 #### Responce in JSON:
 
-##### OK 200:
+##### 200 OK:
 
 ```
 {
@@ -124,7 +124,7 @@ curl --location --request POST 'http://localhost:4848/api/v1/event/' \
 
 #### Responce in JSON:
 
-##### OK 200:
+##### 200 OK:
 
 ```
 {
@@ -149,5 +149,36 @@ curl --location --request POST 'http://localhost:4848/api/v1/event/' \
             "imageURL": "http://localhost:4848/storage/images/7e92eba037ad2d2b/thumbnail_862781.jpg"
         }
     ]
+}
+```
+
+## Delete specific event
+
+`DELETE /api/v1/event/:id`
+
+#### Params:
+
+*id* - the identifier of the specific event to be removed
+
+#### Request in curl:
+
+`curl --location --request DELETE 'http://localhost:4848/api/v1/event/1'`
+
+#### Responce in JSON:
+
+##### 200 OK:
+
+```
+{
+    "success": true
+}
+```
+
+##### 404 Not Found:
+
+```
+{
+    "success": false,
+    "msg": "Event not exist!"
 }
 ```
