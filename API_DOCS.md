@@ -27,7 +27,8 @@ The REST API to the Quick Event app is described below.
 
 #### Request in curl
 
-`curl --location --request POST 'http://localhost:4848/api/v1/event/' \
+```
+curl --location --request POST 'http://localhost:4848/api/v1/event/' \
 --form 'title=Событие Ноябрьска' \
 --form 'description=Уже совсем скоро будет главное событие города - 
 запуск мобильного приложения, собирающие все события города
@@ -36,22 +37,24 @@ The REST API to the Quick Event app is described below.
 --form 'endDate=2020-12-12T10:20:30Z' \
 --form 'location=Ноябрьск, Россия' \
 --form 'kind=culture' \
---form 'thumbnail=@noyabrsk.jpg'`
+--form 'thumbnail=@noyabrsk.jpg'
+```
 
 #### Response in JSON
 
 ###### OK 200 (all rigth):
-
-    `{
+```
+    {
         "success":true,
         "newEventId":1
-    }`
+    }
 
     `newEventId` - id of added event
+```
 
 ###### 400 Bad Request (for example do not include the location in the request):
 
-    `
+```
     {
         "success": false,
         "code": "badrequest",
@@ -65,14 +68,14 @@ The REST API to the Quick Event app is described below.
             }
         ]
     }
-    `
+```
 
 ## Get specific event
 
 `GET /api/v1/event/:id`
 
 #### Params
-    * `:id` - identifier of specific event
+    * id - identifier of specific event
 
 #### Request
 
@@ -82,7 +85,7 @@ The REST API to the Quick Event app is described below.
 
 ###### OK 200:
 
-    `
+```
     {
         "success": true,
         "eventNote": {
@@ -97,17 +100,17 @@ The REST API to the Quick Event app is described below.
             "imageURL": "http://localhost:4848/storage/images/7e92eba037ad2d2b/thumbnail_187618.jpg"
         }
     }
-    `
+```
     `status` - must be `pending`, `in progress` and `done` and depends on the current date and the start and end dates of the event
 
 ###### 404 Not Found:
 
-    `
+```
     {
         "success": false,
         "msg": "Event not exist!"
     }
-    `
+```
 
 ## Get list of events
 
@@ -121,7 +124,7 @@ The REST API to the Quick Event app is described below.
 
 ###### OK 200:
 
-    `
+```
     {
         "success": true,
         "events": [
@@ -145,4 +148,4 @@ The REST API to the Quick Event app is described below.
             }
         ]
     }
-    `
+```
