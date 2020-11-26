@@ -10,9 +10,9 @@ const upload = multer();
 router.post('/register/local', upload.single('avatar'), accountController.register); // Create user
 router.post('/login/local', accountController.login); // Login user
 
-router.get('/:id', userController.getUserById);
+router.get('/from/:id', userController.getUserById);
 
-router.get('/list', authAdmin, userController.getUsers);
+router.get('/list/all', authAdmin, userController.getUsers);
 router.post('/create', authAdmin, upload.single('avatar'), accountController.create);
 router.delete('/:id', authAdmin, userController.removeUser);
 
