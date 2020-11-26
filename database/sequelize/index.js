@@ -1,6 +1,6 @@
 const { Sequelize } = require("sequelize");
 //const { applyExtraSetup } = require('./extra-setup');
-
+require("./types");
 // Option 2: Passing parameters separately (other dialects)
 const sequelize = new Sequelize(
   process.env.MYSQL_DB,
@@ -15,6 +15,9 @@ const sequelize = new Sequelize(
 const modelDefiners = [
 
   require("./models/media/image.model"),
+
+  require("./models/user/user.model"),
+  require("./models/user/mail.account.model"),
 
   require("./models/event/event.model"),
 ];

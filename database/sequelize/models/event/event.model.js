@@ -3,6 +3,7 @@ const {
   ValidationError,
   ValidationErrorItem,
 } = require("sequelize/lib/errors");
+const _ = require("lodash");
 
 class EventNote extends Model {
 
@@ -13,8 +14,8 @@ class EventNote extends Model {
     });
     var transaction = options.transaction || (await sequelize.transaction());
     try {
-      if (!payload.endDateOfEvent instanceof Date || isNaN(payload.endDateOfEvent) ||
-        !payload.startDateOfEvent instanceof Date || isNaN(payload.startDateOfEvent) ||
+      if (!(payload.endDateOfEvent instanceof Date) || isNaN(payload.endDateOfEvent) ||
+        !(payload.startDateOfEvent instanceof Date) || isNaN(payload.startDateOfEvent) ||
         payload.endDateOfEvent < payload.startDateOfEvent)
         throw new ValidationError(null, [
           new ValidationErrorItem(
@@ -55,6 +56,82 @@ class EventNote extends Model {
       throw e;
     }
   }
+
+  static async updateEvent(payload, options) {
+    const { Image } = sequelize.models;
+    options = require("lodash").defaults(options, {
+      transaction: null
+    });
+    var transaction = options.transaction || (await sequelize.transaction());
+    try {
+      const eventNote = await EventNote.findByPk(payload.id, { transaction });
+      console.log(eventNote);
+      if (!eventNote) {
+        throw new ValidationError(null, [
+          new ValidationErrorItem(
+            "Event not exist in database",
+            null,
+            "payload.id",
+            null
+          ),
+        ]);
+      }
+      payload = _.defaults(_.pick(payload,
+        ['title',
+          'kind',
+          'location',
+          'description',
+          'startDateOfEvent',
+          'endDateOfEvent',
+          'thumbnail']),
+        {
+          title: eventNote.title,
+          kind: eventNote.kind,
+          location: eventNote.location,
+          description: eventNote.description,
+          startDateOfEvent: eventNote.startDateOfEvent,
+          endDateOfEvent: eventNote.endDateOfEvent
+        });
+      if (!(payload.endDateOfEvent instanceof Date) || isNaN(payload.endDateOfEvent) ||
+        !(payload.startDateOfEvent instanceof Date) || isNaN(payload.startDateOfEvent) ||
+        payload.endDateOfEvent < payload.startDateOfEvent)
+        throw new ValidationError(null, [
+          new ValidationErrorItem(
+            "End date must be valid and cannot be and earlier than start",
+            null,
+            "payload.endDateOfEvent",
+            payload.endDateOfEvent
+          ),
+        ]);
+      if (payload.thumbnail) {
+        const thumb = await eventNote.getThumb({ transaction });
+        await thumb.destroyImage({ transaction });
+        const newThumbnail = await Image.createImage(
+          payload.thumbnail.path,
+          payload.title,
+          'thumbnail',
+          {
+            resizeArgs: {
+              withoutEnlargement: true,
+              height: 1024,
+              width: 1024,
+            },
+            saveOptions: { transaction }
+          });
+        await eventNote.setThumb(newThumbnail, { transaction });
+      }
+      _.assign(eventNote, _.omit(payload, ['thumbnail']))
+      await eventNote.save({ transaction });
+      if (!options.transaction)
+        transaction.commit().catch(() => {/*rollback already call*/ });
+      return eventNote;
+    }
+    catch (e) {
+      if (!options.transaction) await transaction.rollback();
+      throw e;
+    }
+  }
+
   async destroyEvent(options) {
     var transaction = options && options.transaction || (await sequelize.transaction());
     try {
@@ -68,15 +145,6 @@ class EventNote extends Model {
       throw e;
     }
   }
-  toJSON() {
-    let attributes = Object.assign({}, this.get())
-    if (this.constructor._scopeNames.includes("clientView")) {
-      attributes.imageURL = attributes.thumb.globalPath;
-      delete attributes.thumb;
-      delete attributes.thumbId;
-    }
-    return attributes
-  }
 }
 
 module.exports = {
@@ -85,9 +153,9 @@ module.exports = {
       {
         id: {
           allowNull: false,
-          autoIncrement: true,
           primaryKey: true,
-          type: DataTypes.INTEGER,
+          type: DataTypes.UUID,
+          defaultValue: DataTypes.UUIDV4
         },
         title: {
           allowNull: false,
@@ -152,14 +220,51 @@ module.exports = {
       as: 'thumb',
       foreignKey: 'thumbId'
     });
-    EventNote.addScope("clientView", {
-      include: {
-        model: Image.scope("onlyGlobalPath"),
-        as: "thumb"
+    EventNote.addScope("clientView", function (path = "") {
+      return {
+        attributes: [
+          "id",
+          "title",
+          "description",
+          "location",
+          "startDateOfEvent",
+          "endDateOfEvent",
+          "kind",
+          "status",
+          [sequelize.fn('REPLACE',
+            sequelize.col(`${path}thumb.path`),
+            process.env.HOST_MASK,
+            process.env.APP_HOST),
+            `thumbImg`]
+        ],
+        include: {
+          attributes: [],
+          model: Image,
+          as: "thumb"
+        }
       }
     });
-    EventNote.addScope("preview", {
-      attributes: ["id", "title", "startDateOfEvent", "endDateOfEvent", "kind", "status"]
+    EventNote.addScope("preview", function (path = "") {
+      return {
+        attributes: [
+          "id",
+          "title",
+          "startDateOfEvent",
+          "endDateOfEvent",
+          "kind",
+          "status",
+          [sequelize.fn('REPLACE',
+            sequelize.col(`${path}thumb.path`),
+            process.env.HOST_MASK,
+            process.env.APP_HOST),
+            `thumbImg`]
+        ],
+        include: {
+          attributes: [],
+          model: Image,
+          as: "thumb"
+        }
+      }
     });
   },
 };

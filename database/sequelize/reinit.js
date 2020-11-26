@@ -8,7 +8,7 @@ module.exports = (sequelize) =>
       Image.create(
         {
           isDefault: true,
-          encodedPath: process.env.DEFAULT_AVATAR,
+          path: process.env.DEFAULT_AVATAR,
         }, { raw: true }).catch(console.log);
     })
     .catch(console.log);

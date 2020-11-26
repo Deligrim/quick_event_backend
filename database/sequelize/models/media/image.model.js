@@ -8,6 +8,7 @@ const fsUtils = require.main.require("./utils-modules/filesystem.utils");
 const sharp = require("sharp");
 const md5 = require("md5");
 const _ = require("lodash");
+const moment = require("moment");
 
 class Image extends Model {
   static async createImageFromPath(path, options) {
@@ -17,7 +18,7 @@ class Image extends Model {
         saveOptions: {},
       });
       const image = Image.build({ isDefault: options.isDefault });
-      image.setDataValue("encodedPath", envUtils.localToEncoded(path));
+      image.setDataValue("path", envUtils.localToEncoded(path));
       await image.save(options.saveOptions);
       return image;
     } catch (e) {
@@ -32,6 +33,7 @@ class Image extends Model {
     //img - string|buffer
     options = _.defaults(options, {
       isDefault: false,
+      overrideNamePath: null,
       jpegOptions: { quality: 80 },
       resizeArgs: {
         width: 512,
@@ -42,7 +44,7 @@ class Image extends Model {
     });
     const tr = options.saveOptions.transaction;
 
-    const namePath = `${name}_${(new Date().getTime() + "").slice(7)}.jpg`;
+    const namePath = options.overrideNamePath != null ? options.overrideNamePath : `${name}_${moment.utc().format("x[.jpg]")}`;
     let md5group = md5(group);
     md5group = md5group.slice(0, md5group.length / 2);
     const fullLocalPath = `${process.env.INTERNAL_PUBLIC_PATH}${process.env.IMAGES_PATH}/${md5group}/${namePath}`;
@@ -51,6 +53,7 @@ class Image extends Model {
     try {
       await fsUtils.createDir(tr ? fullTempLocalPath : fullLocalPath);
       await sharp(img)
+        //.limitInputPixels(true)
         .resize(options.resizeArgs)
         .jpeg(options.jpegOptions)
         .toFile(tr ? fullTempLocalPath : fullLocalPath);
@@ -74,7 +77,7 @@ class Image extends Model {
         }, 100 * 1000); //remove temp file after transaction commit timeout
       }
       const image = Image.build({ isDefault: options.isDefault });
-      image.setDataValue("encodedPath", envUtils.localToEncoded(fullLocalPath));
+      image.setDataValue("path", envUtils.localToEncoded(fullLocalPath));
       await image.save(options.saveOptions);
       return image;
     } catch (e) {
@@ -86,23 +89,16 @@ class Image extends Model {
     }
   }
 
-  //ModelWithImage.set<ImageMixin>(Image.replace(ModelWithImage.get<ImageMixin>, newImage))
-  // static async replace(replacedImage, newImage)
-  // {
-  //     if(replacedImage) await replacedImage.deleteImage();
-  //     return newImage;
-  // }
-
   async destroyImage(options) {
     try {
-      var imgEnc = this.getDataValue("encodedPath");
+      var imgEnc = this.getDataValue("path");
       //console.log(imgEnc + " ->\n\t" + value);
       if (imgEnc && !this.isDefault) {
         //console.log("Try deleting unnecessary files: " + imgEnc);
         await this.destroy(options);
         const delFile = () =>
           fsUtils.deleteFile(
-            envUtils.encodedToLocal(imgEnc),
+            envUtils.globalToLocal(imgEnc),
             true,
             options && options.untilDir
           );
@@ -118,15 +114,15 @@ class Image extends Model {
       console.log("File not exist in db!", e);
     }
   }
-  toJSON() {
-    let attributes = Object.assign({}, this.get())
-    //remap avatar for clientView scope
-    if (this.constructor._scopeNames.includes("onlyGlobalPath")) {
-      //attributes.globalPath = attributes.thumbnail.globalPath;
-      delete attributes.encodedPath;
-    }
-    return attributes
-  }
+  // toJSON() {
+  //   let attributes = Object.assign({}, this.get())
+  //   //remap avatar for clientView scope
+  //   // if (this.constructor._scopeNames.includes("onlyGlobalPath")) {
+  //   //   //attributes.globalPath = attributes.thumbnail.globalPath;
+  //   //   delete attributes.path;
+  //   // }
+  //   return attributes
+  // }
 }
 
 module.exports = {
@@ -135,9 +131,9 @@ module.exports = {
       {
         id: {
           allowNull: false,
-          autoIncrement: true,
           primaryKey: true,
-          type: DataTypes.INTEGER,
+          type: DataTypes.UUID,
+          defaultValue: DataTypes.UUIDV4
         },
         isDefault: {
           allowNull: false,
@@ -145,23 +141,23 @@ module.exports = {
           type: DataTypes.BOOLEAN,
         },
 
-        globalPath: {
-          type: DataTypes.VIRTUAL,
-          get() {
-            return envUtils.encodedToGlobal(this.encodedPath);
-          },
-        },
-        encodedPath: {
-          type: DataTypes.STRING,
+        // globalPath: {
+        //   type: DataTypes.VIRTUAL,
+        //   get() {
+        //     return envUtils.encodedToGlobal(this.path);
+        //   },
+        // },
+        path: {
+          type: DataTypes.LINK,
           allowNull: false,
-          get() {
-            return this.getDataValue("encodedPath");
-          },
-          set(value) {
-            throw new Error(
-              "Do not try to set the `encodedPath` value directly, use methods!"
-            );
-          },
+          // get() {
+          //   return this.getDataValue("path");
+          // },
+          // set(value) {
+          //   throw new Error(
+          //     "Do not try to set the `path` value directly, use methods!"
+          //   );
+          // },
         },
       },
       {
@@ -173,7 +169,7 @@ module.exports = {
           defaultAvatar: {
             where: {
               isDefault: true,
-              encodedPath: process.env.DEFAULT_AVATAR,
+              path: process.env.DEFAULT_AVATAR,
             },
           },
         },
@@ -181,10 +177,8 @@ module.exports = {
     );
   },
   assoc: (sequelize) => {
-    //const { } = sequelize.models;
-
-    Image.addScope("onlyGlobalPath", {
-      attributes: ["encodedPath"]
+    Image.addScope("onlyPath", {
+      attributes: ["path"]
     });
   },
 };

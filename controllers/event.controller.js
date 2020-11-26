@@ -51,10 +51,39 @@ async function createEvent(req, res, next) {
     }
 }
 
+async function updateEvent(req, res, next) {
+    const { EventNote } = sequelize.models;
+    try {
+        await uploadThumb(req, res);
+        const payload = {
+            id: req.params.id,
+            title: req.body.title,
+            kind: req.body.kind,
+            location: req.body.location,
+            thumbnail: req.file,
+            description: req.body.description,
+            startDateOfEvent: req.body.startDate && new Date(req.body.startDate),
+            endDateOfEvent: req.body.startDate && new Date(req.body.endDate)
+        };
+        const eventNote = await EventNote.updateEvent(payload, {});
+        return res.status(200).json({
+            success: true,
+            newEventId: eventNote.id
+        });
+    } catch (e) {
+        console.log(e);
+        next(e);
+    }
+    finally {
+        clearTempFiles(req);
+    }
+}
+
+
 async function getEventsFeed(req, res, next) {
     const { EventNote } = sequelize.models;
     try {
-        const events = await EventNote.scope("preview", "clientView").findAll();
+        const events = await EventNote.scope("preview").findAll();
 
         if (events)
             return res.status(200).json({
@@ -118,4 +147,4 @@ async function deleteEvent(req, res, next) {
         next(e);
     }
 }
-module.exports = { createEvent, getEventsFeed, getEvent, deleteEvent };
+module.exports = { createEvent, updateEvent, getEventsFeed, getEvent, deleteEvent };
