@@ -10,6 +10,8 @@ const upload = multer();
 router.post('/register/local', upload.single('avatar'), accountController.register); // Create user
 router.post('/login/local', accountController.login); // Login user
 
+router.get('/:id', userController.getUserById);
+
 router.get('/list', authAdmin, userController.getUsers);
 router.post('/create', upload.single('avatar'), authAdmin, accountController.create);
 router.delete('/:id', authAdmin, userController.removeUser);
@@ -22,6 +24,6 @@ router.use(authToken); // all routes below required authentication by token
 router.get('/self', userController.getSelf);
 router.post('/self/avatar', upload.single('avatar'), userController.setupAvatar);
 router.delete('/self/avatar', userController.removeAvatar);
-router.get('/:id', userController.getUserById);
+
 
 module.exports = router;
