@@ -65,7 +65,7 @@ async function getSelf(req, res) {
 async function getUserById(req, res) {
     const userId = req.params.id;
     try {
-        if (userId == req.user.id) {
+        if (req.user && userId == req.user.id) {
             return await getSelf(req, res);
         }
         let user = await User.scope('clientView').findByPk(userId);

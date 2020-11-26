@@ -13,7 +13,7 @@ router.post('/login/local', accountController.login); // Login user
 router.get('/:id', userController.getUserById);
 
 router.get('/list', authAdmin, userController.getUsers);
-router.post('/create', upload.single('avatar'), authAdmin, accountController.create);
+router.post('/create', authAdmin, upload.single('avatar'), accountController.create);
 router.delete('/:id', authAdmin, userController.removeUser);
 
 router.use(authToken); // all routes below required authentication by token
