@@ -33,7 +33,7 @@ async function create(req, res) {
         await MailAccount.create(creds, { transaction });
         //await account.setUser(User, { transaction });
         await transaction.commit();
-        return res.json({ success: true, msg: "Successful created new user" });
+        return res.json({ success: true, newUserId: user.id });
     } catch (error) {
         utils.defaultErrorHandler(res, error);
         transaction.rollback();

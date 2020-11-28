@@ -1,36 +1,516 @@
 # REST API
 
-The REST API to the Quick Event app is described below.
+REST API 2 версии для приложения Quick Event описан ниже.
 
-# Event APIs:
+## Table of Content
 
-## Adding an event that will be displayed in the feed
+- [Introduction to API](#introduction-to-api)
 
-`POST /api/v1/event/`
+    - [User roles](#user-roles)
+    - [Request format](#request-format)
+    - [Response format](#response-format)
+- [Authorization flow](#authorization-flow)
+	
+	- [JWT token for **user** or **organization** using](#jwt-token-for-user-using)
+	- [API token for **admin** using](#api-token-for-admin-using)
+	- [Local (e-mail) authorization API](#local-authorization-api)
 
-#### Must be perform in multipart/form-data with following fields: 
+	    - [Local registration](#local-registration)
+	    - [Local authentication](#local-authentication)
+	- [VK authorization API](#vkl-authorization-api)
+	- [Facebook authorization API](#facebook-authorization-api)
+	- [Google authorization API](#google-authorization-api)
+- [User API](#user-api)
 
-1. `title` - Title (2..40 chars)
-2. `description` - Description (0..1400 chars)
-3. `startDateOfEvent` - Start date of event (date with time in ISO format with UTC mark)
-4. `endDateOfEvent` - End date of event (date with time in ISO format with UTC mark). Must be later than the start date. Must be equal to the start date if the event does not extend in time.
-5. `location` - Address of event (2..100 chars)
-6. `kind` - type of event, must be one of list:
-    * `other`
-    * `sport`
-    * `culture`
-    * `youth`
-    * `concert`
-    * `theatre`
-    * `contest`
-    * `festival`
-    * `stock`
-7. `thumbnail` - image file in jpg or png format. Will be reduced if more than 1024 pixels on one of the sides. Must be smaller than 5 mb.
+    - [Admin access level](#admin-acess-user-api)
 
-#### Request in curl:
+        - [Create user with role](#create-user-with-role)
+        - [Get user list](#get-user-list)
+        - [Delete specific user](#delete-specific-user)
+    - [User access level](#user-acess-user-api)
 
+        - [Get self user](#get-self-profile)
+        - [Get specific user](#get-specific-user)
+- [Event API](#event-api)
+
+    - [Admin access level](#admin-acess-event-api)
+
+        - [Add new event](#add-new-event)
+        - [Update specific event](#update-specific-event)
+        - [Delete specific event](#delete-specific-event)
+    - [User access level](#user-acess-event-api)
+
+        - [Update specific event from **organizator**](#update-specific-event-from-organizator)
+    - [Unauthorizad access level](#unauthorizad-acess-event-api)
+
+        - [Get list of events](#get-list-of-events)
+        - [Get specific event](#get-specific-event)
+
+# Introduction to API
+
+API соответсвует архитектурному стилю взаимодействия REST.
+
+Ниже описаны подробности используемых ролей с разделённым уровнем доступа, форматов запросов и ответов.
+
+## User roles:
+
+Всего есть три роли с различными правами доступа: **администратор**, **организатор** и **пользователь**.
+
+Также есть несколько функций API с неавторизованным доступом, такие как просмотр событий.
+
+В документации явно указано, какая роль может использовать тот или инной API.
+
+Подробнее об авторизации для разных ролей, написано в разделе [Authorization flow](#authorization-flow)
+
+## Request format:
+
+Все запросы отправляются по протоколу HTTP на URL с обязательным API префиксом (далее API_PREFIX):
+```url
+https://qevent.slar.ru/api/v2
 ```
-curl --location --request POST 'https://qevent.slar.ru/api/v1/event/' \
+Запросы **GET** и **DELETE** исключают наличие тела запроса и являются идемпотентными. 
+Все параметры в запросах **GET** и **DELETE** передаются прямо в URL (обозначаются в документации по шаблону *:param*). 
+
+Запросы **POST** и **PUT** могут содержать URL параметры (обозначаются в документации по шаблону *:param*) и тело запроса в одном из следующих форматов:
+   - *application/x-www-form-urlencoded* - в случае, если тело запроса не предпологает наличие полей с файлами.
+   - *multipart/form-data* - в случае, если запрос предпологает наличие полей с файлами по спецификации.
+
+Необязательный поля в теле запроса обозначаются в документации как *optional*.
+
+## Response format:
+
+Все ответы API возвращаются в формате JSON с кодом ответа:
+   - OK 200
+   - Bad Request 400
+   - Unauthorized 401
+   - Forbidden 403
+   - Internal Error 500
+
+Общий шаблон для всех ответов:
+
+```json
+{
+    "success": true|false,
+    ["other fileds": ...]
+}
+```
+
+Общий шаблон для ошибок:
+
+Краткий:
+
+```json
+{
+    "success": false,
+    "code": "errorname",
+    "msg": "Error messege"
+}
+```
+
+Расширенный(пример):
+
+```json
+{
+    "success": false,
+    "code": "badrequest",
+    "msg": "Bad request",
+    "reason": [
+        {
+            "message": "User.lastName cannot be null",
+            "type": "notNull Violation",
+            "path": "lastName",
+            "value": null
+        }
+    ]
+}
+```
+
+# Authorization flow:
+
+В этом разделе описан процесс авторизации, регистрации и аутентификации для пользователей (в т.ч. организаторов) и администраторов.
+
+## JWT token for **user** or **organization** using:
+
+JSON Web Token (JWT) — это открытый стандарт `RFC 7519` для создания токенов доступа, основанный на формате JSON.
+
+   - В случае успешной авторизации (правильный пароль и email для локальной или завершённый процесс OAuth 2.0), сервер выдаёт JWT токен.
+   - JWT токен должен хранится на клиенте и использоваться в API, требующий **User access level** в виде значения заголовка `Authorization`.
+   - Срок жизни JWT токена составляет 10 дней с момента выдачи, после чего клиенту необходимо запросить новый, пройдя процедуру аутентификации.
+   - В случае отсутствия токена, будет выдана ошибки:
+   ```json
+    {
+        "success": false,
+        "code": "no_token_supplied",
+        "msg": "Authentication failed. Token not provided."
+    }
+   ```
+
+## API token for **admin** using:
+
+   - API admin токен - это секретный токен, выдаваемый администратору навсегда.
+   - API admin токен должен хранится у администратора и использоваться в API, требующий **Admin access level** в виде значения заголовка `Authorization`.
+
+## Local (e-mail) authorization API:
+
+Локальная авторизация предполагает предосталение заранее зарегестрированной валидной пары email-пароль для выдачи JWT токена.
+
+### Local registration:
+
+`POST API_PREFIX/user/register/local`
+
+Регистрация пользователя с ролью user с локальныйм способом авторизации (email).
+
+##### Должен быть со следующими полями:: 
+
+1. `email` - Email аккаунта (должен быть в формате e-mail)
+2. `password` - Пароль аккаунта (6..32 символа)
+3. `firstName` - Имя пользователя (2..24 символа)
+4. `avatar` - Аватар пользователя, файл изображения в jpg или png формате. Будет обрезан по центру до 1024 пикселей по тем сторонам, которые больше этого значения. Должен быть меньше 5мб. *Optional*
+
+#### Запрос с помощью curl:
+
+```bash
+curl --location --request POST 'https://qevent.slar.ru/api/v2/user/register/local' \
+--form 'email=test3@ya.ru' \
+--form 'password=123456' \
+--form 'firstName=Малинов' \
+--form 'lastName=Константин' \
+--form 'role=organizator' \
+--form 'avatar=@/Users/admin/Downloads/Astronaut.jpg'
+```
+
+#### Ответ:
+
+##### 200 OK:
+```json
+{
+    "success": true,
+    "msg": "Successful created new user"
+}
+```
+
+##### 400 Bad Request (для примера, не включим email в запрос):
+
+```json
+{
+    "success": false,
+    "code": "badrequest",
+    "msg": "Bad request",
+    "reason": [
+        {
+            "message": "MailAccount.email cannot be null",
+            "type": "notNull Violation",
+            "path": "email",
+            "value": null
+        }
+    ]
+}
+```
+
+### Local authentication:
+
+`POST API_PREFIX/user/login/local`
+
+Авторизация пользователя с ролью user или organizator с локальныйм способом авторизации (email).
+
+##### Должен быть со следующими полями:
+
+1. `email` - Email аккаунта (должен быть в формате e-mail)
+2. `password` - Пароль аккаунта (6..32 символа)
+
+#### Запрос с помощью curl:
+
+```bash
+curl --location --request POST 'https://qevent.slar.ru/api/v2/user/register/local' \
+--header 'Content-Type: application/x-www-form-urlencoded' \
+--data-urlencode 'email=test3@ya.ru' \
+--data-urlencode 'password=123456' \
+```
+
+#### Ответ:
+
+##### 200 OK:
+```json
+{
+    "success": true,
+    "token": "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpZCI6IjQ0OTUyNGVlLWRkMjctNDY0Mi05YzVlLWVjMGZmY2FmY2ViZSIsImlhdCI6MTYwNjQwMjgwODY5NywiZXhwIjoxNjA3MjY2ODA4Njk3fQ.yiPtiSJ75rOmb29Pzickk9VJd22iFrVfxPfvoWXg_CM",
+    "userId": "449524ee-dd27-4642-9c5e-ec0ffcafcebe"
+}
+```
+
+`token` - JWT-токен с сроком жизни 10 дней.
+`userId` - UUID пользователя.
+
+##### 401 Bad Request (для примера, пароль не верный):
+
+```json
+{
+    "success": false,
+    "code": "auth_failed",
+    "msg": "Authentication failed"
+}
+```
+
+## VK authorization API:
+
+*Будет реализовано в будущем.*
+
+## Facebook authorization API:
+
+*Будет реализовано в будущем.*
+
+## Google authorization API:
+
+*Будет реализовано в будущем.*
+
+# User API:
+
+## Admin access level:
+
+### Create user with role
+
+`POST API_PREFIX/user/create`
+
+Создание пользователя с заданной ролью (user or organizator) с локальныйм способом авторизации (email).
+
+##### Должен быть со следующими полями:: 
+
+1. `email` - Email аккаунта (должен быть в формате e-mail)
+2. `password` - Пароль аккаунта (6..32 символа)
+3. `firstName` - Имя пользователя (2..24 символа)
+4. `role` - Role kind (must be user or organizator)
+5. `avatar` - Аватар пользователя, файл изображения в jpg или png формате. Будет обрезан по центру до 1024 пикселей по тем сторонам, которые больше этого значения. Должен быть меньше 5мб.*Optional*
+
+#### Запрос с помощью curl:
+
+```bash
+curl --location --request POST 'https://qevent.slar.ru/api/v2/user/create' \
+--header 'Authorization: ADMIN_API_TOKEN' \
+--form 'email=test3@ya.ru' \
+--form 'password=123456' \
+--form 'firstName=Малинов' \
+--form 'lastName=Константин' \
+--form 'role=organizator' \
+--form 'avatar=@/Users/admin/Downloads/Astronaut.jpg'
+```
+
+#### Ответ:
+
+##### 200 OK:
+```json
+{
+    "success": true,
+    "newUserId": "5a12dfc6-8eba-43a3-a417-bc8a6ca37e15" 
+}
+```
+
+`newUserId` - UUID нового пользователя
+
+##### 400 Bad Request (для примера, не включим email в запрос):
+
+```json
+{
+    "success": false,
+    "code": "badrequest",
+    "msg": "Bad request",
+    "reason": [
+        {
+            "message": "MailAccount.email cannot be null",
+            "type": "notNull Violation",
+            "path": "email",
+            "value": null
+        }
+    ]
+}
+```
+
+### Get user list
+
+`GET API_PREFIX/user/list/all`
+
+Получение списка всех пользователей (кроме администраторов)
+
+#### Запрос с помощью curl:
+
+```bash
+curl --location --request GET 'https://qevent.slar.ru/api/v2/user/list/all' \
+--header 'Authorization: ADMIN_API_TOKEN' \
+```
+
+#### Ответ:
+
+##### 200 OK:
+```json
+{
+    "success": true,
+    "usersCount": 2,
+    "users": [
+        {
+            "id": "5a12dfc6-8eba-43a3-a417-bc8a6ca37e15",
+            "firstName": "Климашин",
+            "lastName": "Максим",
+            "role": "user",
+            "avatarImg": "https://qevent.slar.ru/storage/images/cb5e6f1a7bce87f0/avatar_1606512497368.jpg"
+        },
+        {
+            "id": "71c460e8-9de0-46d9-adbd-9df2c0bdbc1d",
+            "firstName": "Малинов",
+            "lastName": "Константин",
+            "role": "organizator",
+            "avatarImg": "https://qevent.slar.ru/storage/images/b5dcdc2c1777f613/avatar_1606600767168.jpg"
+        }
+    ]
+}
+```
+
+`usersCount` - количество пользователей.
+
+### Delete specific user
+
+`DELETE API_PREFIX/user/:UUID`
+
+Удаление конкретного пользователя.
+
+#### Параметры:
+
+*UUID* - identifier of specific user
+
+#### Запрос с помощью curl:
+
+```bash
+curl --location --request DELETE 'https://qevent.slar.ru/api/v2/user/449524ee-dd27-4642-9c5e-ec0ffcafcebe' \
+--header 'Authorization: ADMIN_API_TOKEN'
+```
+
+#### Ответ:
+
+##### 200 OK:
+
+```json
+{
+    "success": true
+}
+```
+
+##### 404 Not found:
+
+```json
+{
+    "success": false,
+    "code": "notfound",
+    "msg": "User not exist!"
+}
+```
+
+## User access level:
+
+### Get self user
+
+`GET API_PREFIX/user/self`
+
+Получение информации о своём профиле
+
+#### Запрос с помощью curl:
+
+```bash
+curl --location --request GET 'https://qevent.slar.ru/api/v2/user/self' \
+--header 'Authorization: JWT' \
+```
+
+#### Ответ:
+
+##### 200 OK:
+```json
+{
+    "success": true,
+    "user": {
+        "id": "449524ee-dd27-4642-9c5e-ec0ffcafcebe",
+        "firstName": "Климашин",
+        "lastName": "Максим",
+        "role": "user",
+        "avatarImg": "https://qevent.slar.ru/storage/images/20a2f34c36da8659/avatar_1606402703968.jpg"
+    }
+}
+```
+
+### Get specific user
+
+`GET API_PREFIX/user/from/:UUID`
+
+Получение информации о конкретном пользователе
+
+#### Параметры:
+
+*UUID* - UUID конкретного пользователя
+
+#### Запрос с помощью curl:
+
+```bash
+curl --location --request GET 'https://qevent.slar.ru/api/v2/user/from/20e2a0b6-2de3-4059-beab-3b9b2720efa7' \
+--header 'Authorization: JWT' \
+```
+
+#### Ответ:
+
+##### 200 OK:
+```json
+{
+    "success": true,
+    "user": {
+        "id": "449524ee-dd27-4642-9c5e-ec0ffcafcebe",
+        "firstName": "Климашин",
+        "lastName": "Максим",
+        "role": "user",
+        "avatarImg": "https://qevent.slar.ru/storage/images/20a2f34c36da8659/avatar_1606402703968.jpg"
+    }
+}
+```
+
+##### 404 Not Found:
+```json
+{
+    "success": false,
+    "code": "notfound",
+    "msg": "User not found"
+}
+```
+
+# Event API:
+
+Этот раздел описывает API для событий: функции для создания, редактирования, просмотра списков и отдельных событий, а также удаления.
+
+## Admin access level
+
+### Add new event
+
+`POST API_PREFIX/event/admin/`
+
+Добавление нового мероприятия.
+
+##### Должен быть со следующими полями:: 
+
+1. `title` - Название (2..40 символов)
+2. `description` - Описание (0..1400 символов)
+3. `startDateOfEvent` - Дата начала события (дата со временем в ISO формате в UTC).
+4. `endDateOfEvent` - Дата окончания события (дата со временем в ISO формате в UTC). Должна быть позже, чем дата начала. Должна равняться дате начала события, если событие не растягивается во времени.
+5. `location` - Адрес проведения события (2..100 символов).
+6. `kind` - тип события, должен быть одним из списка:
+    * `other` - Другие
+    * `sport` - Спорт
+    * `culture` - Культура
+    * `youth` - Молодёжное
+    * `concert` - Концерт
+    * `theatre` - Театр
+    * `contest` - Соревнование
+    * `festival` - Фестиваль
+    * `stock` - Акция
+7. `thumbnail` - файл изображения в jpg или png формате. Будет обрезан по центру до 1024 пикселей по тем сторонам, которые больше этого значения. Должен быть меньше 5мб.
+
+#### Запрос с помощью curl:
+
+```bash
+curl --location --request POST 'https://qevent.slar.ru/api/v2/event/admin' \
+--header 'Authorization: ADMIN_API_TOKEN' \
 --form 'title=Событие Ноябрьска' \
 --form 'description=Уже совсем скоро будет главное событие города - 
 запуск мобильного приложения, собирающие все события города
@@ -42,20 +522,20 @@ curl --location --request POST 'https://qevent.slar.ru/api/v1/event/' \
 --form 'thumbnail=@noyabrsk.jpg'
 ```
 
-#### Response in JSON:
+#### Ответ:
 
-##### 200 OK (all rigth):
-```
+##### 200 OK:
+```json
 {
     "success":true,
-    "newEventId":1
+    "newEventId":"2170d275-4ddd-43ed-881f-569351bccb3e"
 }
 ```
-`newEventId` - id of added event
+`newEventId` - UUID созданного мероприятия
 
 ##### 400 Bad Request (for example do not include the location in the request):
 
-```
+```json
 {
     "success": false,
     "code": "badrequest",
@@ -71,28 +551,257 @@ curl --location --request POST 'https://qevent.slar.ru/api/v1/event/' \
 }
 ```
 
-## Get specific event
+### Update specific event
 
-`GET /api/v1/event/:id`
+`PUT API_PREFIX/event/admin/:UUID`
 
-#### Params:
+Редактирование информации конкретного мероприятия.
 
-*id* - identifier of specific event
+#### Параметры:
 
-#### Request in curl:
+*UUID* - UUID конкретного мепроприятия
 
-`curl --location --request GET 'https://qevent.slar.ru/api/v1/event/1'`
+##### Должен быть со следующими полями:: 
 
-#### Responce in JSON:
+1. `title` - Название (2..40 символов). *Optional*
+2. `description` - Описание (0..1400 символов) *Optional*
+3. `startDateOfEvent` - Дата начала события (дата со временем в ISO формате в UTC). *Optional*
+4. `endDateOfEvent` - Дата окончания события (дата со временем в ISO формате в UTC). Должна быть позже, чем дата начала. Должна равняться дате начала события, если событие не растягивается во времени. *Optional*
+5. `location` - Адрес проведения события (2..100 символов). *Optional*
+6. `kind` - тип события, должен быть одним из списка, *optional*:
+    * `other` - Другие
+    * `sport` - Спорт
+    * `culture` - Культура
+    * `youth` - Молодёжное
+    * `concert` - Концерт
+    * `theatre` - Театр
+    * `contest` - Соревнование
+    * `festival` - Фестиваль
+    * `stock` - Акция
+7. `thumbnail` - файл изображения в jpg или png формате. Будет обрезан по центру до 1024 пикселей по тем сторонам, которые больше этого значения. Должен быть меньше 5мб. *Optional*
+
+#### Запрос с помощью curl:
+
+```bash
+curl --location --request PUT 'https://qevent.slar.ru/api/v2/event/admin/2170d275-4ddd-43ed-881f-569351bccb3e' \
+--header 'Authorization: ADMIN_API_TOKEN' \
+--form 'title=Событие Ноябрьска' \
+--form 'description=Уже совсем скоро будет главное событие города - 
+запуск мобильного приложения, собирающие все события города
+в одном месте на официальном уровне.' \
+--form 'kind=culture' \
+```
+
+#### Ответ:
+
+##### 200 OK:
+```json
+{
+    "success":true
+}
+```
+
+##### 400 Bad Request (for example UUID param not exist in database):
+
+```json
+{
+    "success": false,
+    "code": "badrequest",
+    "msg": "Bad request",
+    "reason": [
+        {
+            "message": "Event not exist in database",
+            "type": null,
+            "path": "payload.id",
+            "value": null
+        }
+    ]
+}
+```
+
+
+### Delete specific event
+
+`DELETE API_PREFIX/event/admin/:UUID`
+
+Удаление конкретного мероприятия.
+
+#### Параметры:
+
+*UUID* - UUID конкретного мероприятия. 
+
+#### Запрос с помощью curl:
+
+```bash
+curl --location --request DELETE 'https://qevent.slar.ru/api/v2/event/admin/1a4d8e9f-96c7-4b5c-b23c-2e584f9b4fbc' \
+--header 'Authorization: ADMIN_API_TOKEN'
+```
+
+#### Ответ:
 
 ##### 200 OK:
 
+```json
+{
+    "success": true
+}
 ```
+
+##### 404 Not found:
+
+```json
+{
+    "success": false,
+    "code": "notfound",
+    "msg": "Event not exist!"
+}
+```
+
+## User access level
+
+### Update specific event from organizator
+
+`PUT API_PREFIX/event/:UUID`
+
+Редактирование данных в существующем событии.
+*Необходима роль организатора для совершения запроса*
+
+#### Параметры:
+
+*UUID* - identifier of specific event
+
+##### Должен быть со следующими полями:: 
+
+1. `title` - Название (2..40 символов). *Optional*
+2. `description` - Описание (0..1400 символов) *Optional*
+3. `startDateOfEvent` - Дата начала события (дата со временем в ISO формате в UTC) *Optional*
+4. `endDateOfEvent` - Дата окончания события (дата со временем в ISO формате в UTC). Должна быть позже, чем дата начала. Должна равняться дате начала события, если событие не растягивается во времени. *Optional*
+5. `location` - Адрес проведения события (2..100 символов) *Optional*
+6. `kind` - тип события, должен быть одним из списка, *optional*:
+    * `other` - Другие
+    * `sport` - Спорт
+    * `culture` - Культура
+    * `youth` - Молодёжное
+    * `concert` - Концерт
+    * `theatre` - Театр
+    * `contest` - Соревнование
+    * `festival` - Фестиваль
+    * `stock` - Акция
+7. `thumbnail` - файл изображения в jpg или png формате. Будет обрезан по центру до 1024 пикселей по тем сторонам, которые больше этого значения. Должен быть меньше 5мб. *Optional*
+
+#### Запрос с помощью curl:
+
+```bash
+curl --location --request PUT 'https://qevent.slar.ru/api/v2/event/2170d275-4ddd-43ed-881f-569351bccb3e' \
+--header 'Authorization: JWT_TOKEN' \
+--form 'title=Событие Ноябрьска' \
+--form 'description=Уже совсем скоро будет главное событие города - 
+запуск мобильного приложения, собирающие все события города
+в одном месте на официальном уровне.' \
+--form 'kind=culture' \
+```
+
+#### Ответ:
+
+##### 200 OK:
+
+```json
+{
+    "success":true
+}
+```
+
+##### 400 Bad Request (для пример, UUID параметр не соответсвует ни одному событию базе данных):
+
+```json
+{
+    "success": false,
+    "code": "badrequest",
+    "msg": "Bad request",
+    "reason": [
+        {
+            "message": "Event not exist in database",
+            "type": null,
+            "path": "payload.id",
+            "value": null
+        }
+    ]
+}
+```
+
+
+
+## Unauthorizad access level
+
+### Get list of events
+
+`GET API_PREFIX/event/`
+
+Получение списка всех мероприятий.
+
+#### Запрос с помощью curl:
+
+```bash
+curl --location --request GET 'https://qevent.slar.ru/api/v2/event/'
+```
+
+#### Ответ:
+
+##### 200 OK:
+
+```json
+{
+    "success": true,
+    "events": [
+        {
+            "status": "in progress",
+            "id": "2de26097-658e-4fdb-acb1-91032be76a63",
+            "title": "Выставка #ЯмалРодина",
+            "startDateOfEvent": "2020-10-28T10:20:30.000Z",
+            "endDateOfEvent": "2020-12-01T10:20:30.000Z",
+            "kind": "culture",
+            "imageURL": "https://qevent.slar.ru/storage/images/50add274a1654e26/thumbnail_858819.jpg"
+        },
+        {
+            "status": "pending",
+            "id": "2de26097-658e-4fdb-acb1-91032be76a65",
+            "title": "Событие Ноябрьска",
+            "startDateOfEvent": "2020-12-10T10:20:30.000Z",
+            "endDateOfEvent": "2020-12-12T10:20:30.000Z",
+            "kind": "culture",
+            "imageURL": "https://qevent.slar.ru/storage/images/7e92eba037ad2d2b/thumbnail_862781.jpg"
+        }
+    ]
+}
+```
+
+
+### Get specific event
+
+`GET API_PREFIX/event/:UUID`
+
+Получение информации о конкретном мероприятии.
+
+#### Параметры:
+
+*UUID* - identifier of specific event
+
+#### Запрос с помощью curl:
+
+```bash
+curl --location --request GET 'https://qevent.slar.ru/api/v2/event/72a0394a-7052-4761-8d95-9984765d3ade'
+```
+
+#### Ответ:
+
+##### 200 OK:
+
+```json
 {
     "success": true,
     "eventNote": {
         "status": "pending",
-        "id": 1,
+        "id": "72a0394a-7052-4761-8d95-9984765d3ade",
         "title": "Событие Ноябрьска",
         "description": "Уже совсем скоро будет главное событие города - \nзапуск мобильного приложения, собирающие все события города\nв одном месте на официальном уровне.",
         "startDateOfEvent": "2020-12-10T10:20:30.000Z",
@@ -107,78 +816,10 @@ curl --location --request POST 'https://qevent.slar.ru/api/v1/event/' \
 
 ##### 404 Not Found:
 
-```
+```json
 {
     "success": false,
-    "msg": "Event not exist!"
-}
-```
-
-## Get list of events
-
-`GET /api/v1/event/`
-
-#### Request in curl:
-
-`curl --location --request GET 'https://qevent.slar.ru/api/v1/event/'`
-
-#### Responce in JSON:
-
-##### 200 OK:
-
-```
-{
-    "success": true,
-    "events": [
-        {
-            "status": "in progress",
-            "id": 1,
-            "title": "Выставка #ЯмалРодина",
-            "startDateOfEvent": "2020-10-28T10:20:30.000Z",
-            "endDateOfEvent": "2020-12-01T10:20:30.000Z",
-            "kind": "culture",
-            "imageURL": "https://qevent.slar.ru/storage/images/50add274a1654e26/thumbnail_858819.jpg"
-        },
-        {
-            "status": "pending",
-            "id": 2,
-            "title": "Событие Ноябрьска",
-            "startDateOfEvent": "2020-12-10T10:20:30.000Z",
-            "endDateOfEvent": "2020-12-12T10:20:30.000Z",
-            "kind": "culture",
-            "imageURL": "https://qevent.slar.ru/storage/images/7e92eba037ad2d2b/thumbnail_862781.jpg"
-        }
-    ]
-}
-```
-
-## Delete specific event
-
-`DELETE /api/v1/event/:id`
-
-#### Params:
-
-*id* - the identifier of the specific event to be removed
-
-#### Request in curl:
-
-`curl --location --request DELETE 'https://qevent.slar.ru/api/v1/event/1'`
-
-#### Responce in JSON:
-
-##### 200 OK:
-
-```
-{
-    "success": true
-}
-```
-
-##### 404 Not Found:
-
-```
-{
-    "success": false,
+    "code": "notfound",
     "msg": "Event not exist!"
 }
 ```

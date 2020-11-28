@@ -65,10 +65,9 @@ async function updateEvent(req, res, next) {
             startDateOfEvent: req.body.startDate && new Date(req.body.startDate),
             endDateOfEvent: req.body.startDate && new Date(req.body.endDate)
         };
-        const eventNote = await EventNote.updateEvent(payload, {});
+        await EventNote.updateEvent(payload, {});
         return res.status(200).json({
-            success: true,
-            newEventId: eventNote.id
+            success: true
         });
     } catch (e) {
         console.log(e);
