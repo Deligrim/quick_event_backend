@@ -268,7 +268,7 @@ curl --location --request POST 'https://qevent.slar.ru/api/v2/user/register/loca
 1. `email` - Email аккаунта (должен быть в формате e-mail)
 2. `password` - Пароль аккаунта (6..32 символа)
 3. `firstName` - Имя пользователя (2..24 символа)
-4. `role` - Role kind (must be user or organizator)
+4. `role` - Роль пользователя (должна быть `user` или `organizator`)
 5. `avatar` - Аватар пользователя, файл изображения в jpg или png формате. Будет обрезан по центру до 1024 пикселей по тем сторонам, которые больше этого значения. Должен быть меньше 5мб.*Optional*
 
 #### Запрос с помощью curl:
