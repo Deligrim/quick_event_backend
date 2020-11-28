@@ -4,26 +4,21 @@ REST API 2 версии для приложения Quick Event описан н�
 
 ## Table of Content
 
-- [Introduction to API](#introduction-to-api)
-
+- [Введение в API](#введение-в-api)
     - [User roles](#user-roles)
     - [Request format](#request-format)
     - [Response format](#response-format)
 - [Authorization flow](#authorization-flow)
-	
 	- [JWT token for **user** or **organization** using](#jwt-token-for-user-using)
 	- [API token for **admin** using](#api-token-for-admin-using)
 	- [Local (e-mail) authorization API](#local-authorization-api)
-
 	    - [Local registration](#local-registration)
 	    - [Local authentication](#local-authentication)
 	- [VK authorization API](#vkl-authorization-api)
 	- [Facebook authorization API](#facebook-authorization-api)
 	- [Google authorization API](#google-authorization-api)
 - [User API](#user-api)
-
     - [Admin access level](#admin-acess-user-api)
-
         - [Create user with role](#create-user-with-role)
         - [Get user list](#get-user-list)
         - [Delete specific user](#delete-specific-user)
@@ -32,21 +27,17 @@ REST API 2 версии для приложения Quick Event описан н�
         - [Get self user](#get-self-profile)
         - [Get specific user](#get-specific-user)
 - [Event API](#event-api)
-
     - [Admin access level](#admin-acess-event-api)
-
         - [Add new event](#add-new-event)
         - [Update specific event](#update-specific-event)
         - [Delete specific event](#delete-specific-event)
     - [User access level](#user-acess-event-api)
-
         - [Update specific event from **organizator**](#update-specific-event-from-organizator)
     - [Unauthorizad access level](#unauthorizad-acess-event-api)
-
         - [Get list of events](#get-list-of-events)
         - [Get specific event](#get-specific-event)
 
-# Introduction to API
+# Введение в API
 
 API соответсвует архитектурному стилю взаимодействия REST.
 
