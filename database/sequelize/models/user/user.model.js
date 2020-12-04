@@ -4,8 +4,37 @@ const {
     ValidationErrorItem,
 } = require("sequelize/lib/errors");
 const jwt = require("jwt-simple");
+const _ = require("lodash");
 
 class User extends Model {
+    static async createUser(creds, options) {
+        console.log(creds);
+        options = _.defaults(options, {
+            transaction: null,
+        });
+
+        var transaction = options.transaction || (await sequelize.transaction());
+        try {
+            var user = await User.create(_.pick(creds, ["firstName", "lastName", "role"]), {
+                transaction,
+            });
+            if (creds.avatar)
+                await user.setAvatarFromBuffer(creds.avatar, transaction);
+            else {
+                await user.setAvatar(
+                    await Image.findOne({
+                        isDefault: true,
+                        transaction
+                    }),
+                    { transaction });
+            }
+            return user;
+        }
+        catch (e) {
+            if (!options || !options.transaction) await transaction.rollback();
+            throw e;
+        }
+    }
 
     static async findByToken(token) {
         try {
@@ -47,6 +76,11 @@ class User extends Model {
             }
             await this.setAvatar(
                 await Image.createImage(imageBuffer, 'User' + this.id, "avatar", {
+                    resizeArgs: {
+                        width: 400,
+                        height: 400,
+                        fit: "cover",
+                    },
                     saveOptions: { transaction },
                 }),
                 { transaction }

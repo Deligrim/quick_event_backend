@@ -2,7 +2,9 @@
 (async () => {
     //require('./configs/index');
     require('dotenv').config();
-    process.env.INTERNAL_PUBLIC_PATH = require('path').dirname(require.main.filename) + "/public";
+
+    process.env.INTERNAL_PUBLIC_PATH = __dirname + "/public";
+    process.env.TEMP_PATH = __dirname + "/temp";
 
     global.sequelize = require('./database/sequelize');
 

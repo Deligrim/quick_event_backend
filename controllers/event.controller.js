@@ -1,29 +1,17 @@
 "use strict";
-const utils = require("./utils.controller");
 const jsUtils = require("util");
 const multer = require("multer");
-const fsUtils = require("../utils-modules/filesystem.utils");
 const _ = require("lodash");
 const {
     ValidationError,
     ValidationErrorItem,
 } = require("sequelize/lib/errors");
 
-const storage = multer.diskStorage({
-    destination: (req, file, cb) => {
-        cb(null, "./temp");
-    },
-    filename: (req, file, cb) => {
-        cb(null, `${+new Date()}_${file.originalname}`);
-    },
-});
 
 const uploadThumb = jsUtils.promisify(
-    multer({ storage }).single('thumbnail')
+    multer().single('thumbnail')
 );
-function clearTempFiles(req) {
-    fsUtils.deleteFileSync(req.file.path, false);
-}
+
 async function createEvent(req, res, next) {
     const { EventNote } = sequelize.models;
     try {
@@ -45,9 +33,6 @@ async function createEvent(req, res, next) {
     } catch (e) {
         console.log(e);
         next(e);
-    }
-    finally {
-        clearTempFiles(req);
     }
 }
 

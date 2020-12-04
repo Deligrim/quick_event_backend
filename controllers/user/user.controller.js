@@ -1,5 +1,4 @@
 "use strict";
-const utils = require('./../utils.controller');
 
 const { User } = sequelize.models;
 
@@ -44,7 +43,7 @@ async function removeUser(req, res, next) {
     }
 }
 
-async function getSelf(req, res) {
+async function getSelf(req, res, next) {
     try {
         if (req.user) {
             let user = //.pick(req.user,['id','username'])
@@ -57,12 +56,12 @@ async function getSelf(req, res) {
                 user: user
             });
         }
-        return utils.defaultErrorHandler(res, { name: "Unreachable!" });
+        return next({ name: "Unreachable!" });
     }
-    catch (e) { return utils.defaultErrorHandler(res, e) }
+    catch (e) { next(e); }
 }
 
-async function getUserById(req, res) {
+async function getUserById(req, res, next) {
     const userId = req.params.id;
     try {
         if (req.user && userId == req.user.id) {
@@ -75,7 +74,7 @@ async function getUserById(req, res) {
             success: true,
             user: user.toJSON()
         });
-    } catch (e) { return utils.defaultErrorHandler(res, e) }
+    } catch (e) { next(e); }
 }
 
 // async function followUserById(req, res) {
@@ -199,7 +198,7 @@ async function getUserById(req, res) {
 //     } catch (e) { return utils.defaultErrorHandler(res, e) }
 // }
 
-async function setupAvatar(req, res) {
+async function setupAvatar(req, res, next) {
     try {
         if (req.file && req.file.buffer) {
             var dbUser = await User.findByPk(req.user.id);
@@ -208,15 +207,15 @@ async function setupAvatar(req, res) {
         }
         else return res.status(400).json({ success: false, code: "badrequest", msg: "Image file is require!" });
     }
-    catch (e) { return utils.defaultErrorHandler(res, e) }
+    catch (e) { next(e); }
 }
-async function removeAvatar(req, res) {
+async function removeAvatar(req, res, next) {
     try {
         var dbUser = await User.findByPk(req.user.id);
         await dbUser.deleteAvatar();
         return await getSelf(req, res);
     }
-    catch (e) { return utils.defaultErrorHandler(res, e) }
+    catch (e) { next(e); }
 }
 
 

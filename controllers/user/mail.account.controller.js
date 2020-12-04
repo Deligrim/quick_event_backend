@@ -6,69 +6,62 @@
 const { MailAccount, User, Image } = sequelize.models;
 
 const _ = require("lodash");
-const utils = require("./../utils.controller");
 
 
-
-async function create(req, res) {
+async function create(req, res, next) {
     const transaction = await sequelize.transaction();
     try {
-        var avatarBuffer = req.file && req.file.buffer;
+        var avatar = req.file && req.file.buffer;
 
-        var creds = _.pick(req.body, ["email", "password"]);
+
         console.log("create user:");
         console.log(_.pick(req.body, ["firstName", "lastName", "role"]));
-        var user = await User.create(_.pick(req.body, ["firstName", "lastName", "role"]), {
-            transaction,
-        });
+
+        var user = await User.createUser({
+            firsName: req.body.firsName,
+            lastName: req.body.lastName,
+            role: req.body.role,
+            avatar
+        }, { transaction });
+
+        var creds = _.pick(req.body, ["email", "password"]);
         creds.UserId = user.id;
-        if (avatarBuffer)
-            await user.setAvatarFromBuffer(avatarBuffer, transaction);
-        else {
-            await user.setAvatar(await Image.findOne({
-                isDefault: true
-            }, { transaction }), { transaction })
-        }
-        //await User.save({ transaction });
         await MailAccount.create(creds, { transaction });
-        //await account.setUser(User, { transaction });
         await transaction.commit();
         return res.json({ success: true, newUserId: user.id });
     } catch (error) {
-        utils.defaultErrorHandler(res, error);
+        next(error);
         transaction.rollback();
     }
 }
 
-async function register(req, res) {
+async function register(req, res, next) {
     const transaction = await sequelize.transaction();
     try {
-        var avatarBuffer = req.file && req.file.buffer;
+        var avatar = req.file && req.file.buffer;
         console.log(req.body);
 
+        var user = await User.createUser({
+            firsName: req.body.firsName,
+            lastName: req.body.lastName,
+            avatar
+        }, { transaction });
+
         var creds = _.pick(req.body, ["email", "password"]);
-        var user = await User.create(_.pick(req.body, ["firstName", "lastName"]), {
-            transaction,
-        });
         creds.UserId = user.id;
-        if (avatarBuffer)
-            await user.setAvatarFromBuffer(avatarBuffer, transaction);
-        else {
-            const defaultAvatar = await Image.scope("defaultAvatar").findOne();
-            await user.setAvatar(defaultAvatar, { transaction });
-        }
+
         //await User.save({ transaction });
         await MailAccount.create(creds, { transaction });
         //await account.setUser(User, { transaction });
         await transaction.commit();
         return res.json({ success: true, msg: "Successful created new user" });
     } catch (error) {
-        utils.defaultErrorHandler(res, error);
+        next(error);
         transaction.rollback();
     }
 }
 
-async function login(req, res) {
+async function login(req, res, next) {
     try {
         const creds = _.pick(req.body, ["email", "password"]);
         const account = await MailAccount.findByCredentials(creds);
@@ -85,7 +78,7 @@ async function login(req, res) {
             userId: account.UserId,
         });
     } catch (error) {
-        return utils.defaultErrorHandler(res, error);
+        next(error);
     }
 }
 

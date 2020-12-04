@@ -29,6 +29,10 @@ class Image extends Model {
       ]);
     }
   }
+  static async createImageFromUrl(url, group, name, options) {
+
+    fsUtils.deleteFileSync(req.file.path, false);
+  }
   static async createImage(img, group, name, options) {
     //img - string|buffer
     options = _.defaults(options, {

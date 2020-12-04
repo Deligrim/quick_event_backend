@@ -18,6 +18,7 @@ const modelDefiners = [
 
   require("./models/user/user.model"),
   require("./models/user/mail.account.model"),
+  require("./models/user/vk.account.model"),
 
   require("./models/event/event.model"),
 ];

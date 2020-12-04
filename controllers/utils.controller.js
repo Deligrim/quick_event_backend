@@ -1,6 +1,6 @@
 
 const _ = require("lodash");
-defaultErrorHandler = function (res, error, customs) {
+function defaultErrorHandler(res, error, customs) {
     if (!error || !error.name) {
         console.error('\x1b[31mUnknown format error!\x1b[0m', `\x1b[31m${error}\x1b[0m`);
         return res && res.status(500).json({ success: false, code: "unknown", msg: "Unknown error" });
