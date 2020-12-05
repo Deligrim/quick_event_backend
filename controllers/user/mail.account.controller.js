@@ -18,7 +18,7 @@ async function create(req, res, next) {
         console.log(_.pick(req.body, ["firstName", "lastName", "role"]));
 
         var user = await User.createUser({
-            firsName: req.body.firsName,
+            firstName: req.body.firstName,
             lastName: req.body.lastName,
             role: req.body.role,
             avatar
@@ -42,7 +42,7 @@ async function register(req, res, next) {
         console.log(req.body);
 
         var user = await User.createUser({
-            firsName: req.body.firsName,
+            firstName: req.body.firstName,
             lastName: req.body.lastName,
             avatar
         }, { transaction });

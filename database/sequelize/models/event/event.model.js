@@ -27,7 +27,7 @@ class EventNote extends Model {
         ]);
 
       const thumbnail = await Image.createImage(
-        payload.thumbnail.path,
+        payload.thumbnail.buffer,
         payload.title,
         'thumbnail',
         {

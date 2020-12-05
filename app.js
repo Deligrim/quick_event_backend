@@ -6,6 +6,7 @@
     process.env.INTERNAL_PUBLIC_PATH = __dirname + "/public";
     process.env.TEMP_PATH = __dirname + "/temp";
 
+    console.log("Temp path: " + process.env.TEMP_PATH);
     global.sequelize = require('./database/sequelize');
 
     const express = require("express");
