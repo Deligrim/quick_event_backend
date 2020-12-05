@@ -8,7 +8,8 @@ const _ = require("lodash");
 
 class User extends Model {
     static async createUser(creds, options) {
-        console.log(creds);
+        // console.log(creds);
+        const { Image } = sequelize.models;
         options = _.defaults(options, {
             transaction: null,
         });
