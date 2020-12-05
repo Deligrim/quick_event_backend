@@ -199,7 +199,7 @@ curl --location --request POST 'https://qevent.slar.ru/api/v2/user/register/loca
 
 ### Локальная авторизация:
 
-`POST API_PREFIX/user/login/local`
+`POST API_PREFIX/user/auth/local`
 
 Авторизация пользователя с ролью user или organizator с локальныйм способом авторизации (email).
 
@@ -211,7 +211,7 @@ curl --location --request POST 'https://qevent.slar.ru/api/v2/user/register/loca
 #### Запрос с помощью curl:
 
 ```bash
-curl --location --request POST 'https://qevent.slar.ru/api/v2/user/register/local' \
+curl --location --request POST 'https://qevent.slar.ru/api/v2/user/auth/local' \
 --header 'Content-Type: application/x-www-form-urlencoded' \
 --data-urlencode 'email=test3@ya.ru' \
 --data-urlencode 'password=123456' \
@@ -243,7 +243,58 @@ curl --location --request POST 'https://qevent.slar.ru/api/v2/user/register/loca
 
 ## API авторизации через VK:
 
-*Будет реализовано в будущем.*
+`POST API_PREFIX/user/auth/vk`
+
+Авторизация пользователя с ролью user с помощью соц сети ВКонтакте.
+
+##### Должен быть со следующими полями:
+
+1. `token` - access_token auth 2.0 пользователя вк, полученный на клиенте 
+
+#### Запрос с помощью curl:
+
+```bash
+curl --location --request POST 'http://qevent.slar.ru/api/v2/user/auth/vk' \
+--header 'Content-Type: application/x-www-form-urlencoded' \
+--data-urlencode 'token=9e3c270a09f37f5edd62fde89fb1a7ce8ba9bddd0c62017f50731c931590efc710e5'
+```
+
+#### Ответ:
+
+##### 200 OK:
+```json
+{
+    "success": true,
+    "token": "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpZCI6ImU3MzA4ZDQ1LTU3NmItNGYxNS1hM2UzLWEwZTRlMWNkYjliNyIsImlhdCI6MTYwNzE4MjEyOTYxNCwiZXhwIjoxNjA4MDQ2MTI5NjE0fQ.uWQMHxvaLZ56fyWyUPq8Q_ghwNsNMIZIxlyt5XtqKR8",
+    "userId": "e7308d45-576b-4f15-a3e3-a0e4e1cdb9b7",
+    "firstAuth": false
+}
+```
+
+
+1.`token` - JWT-токен с сроком жизни 10 дней.
+
+2.`userId` - UUID пользователя.
+
+3.`firstAuth` - Флаг. Если true, то пользователь с таким VK id авторизовался впервые (прошла регистрация)
+
+##### 400 Bad Request (для примера, токен неверного формата):
+
+```json
+{
+    "success": false,
+    "code": "badrequest",
+    "msg": "Bad request",
+    "reason": [
+        {
+            "message": "Access denied: Incorrect token invalid_token",
+            "type": null,
+            "path": "token",
+            "value": "9e3c270a09f37f5edd62fde89fb1a7ce8ba9bddd0c6201978651eb02647f2617f50731c931590efc710e5"
+        }
+    ]
+}
+```
 
 ## API авторизации через Facebook:
 
@@ -771,7 +822,7 @@ curl --location --request GET 'https://qevent.slar.ru/api/v2/event/'
 
 #### Параметры:
 
-*UUID* - identifier of specific event
+*UUID* - uuid мероприятия
 
 #### Запрос с помощью curl:
 
@@ -799,7 +850,7 @@ curl --location --request GET 'https://qevent.slar.ru/api/v2/event/72a0394a-7052
     }
 }
 ```
-`status` - must be `pending`, `in progress` and `done` and depends on the current date and the start and end dates of the event
+`status` - может быть `pending`, `in progress` или `done` и зависит от текущей даты, даты начала события и дата окончания события
 
 ##### 404 Not Found:
 
