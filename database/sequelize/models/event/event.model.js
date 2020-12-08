@@ -107,7 +107,7 @@ class EventNote extends Model {
         const thumb = await eventNote.getThumb({ transaction });
         await thumb.destroyImage({ transaction });
         const newThumbnail = await Image.createImage(
-          payload.thumbnail.path,
+          payload.thumbnail.buffer,
           payload.title,
           'thumbnail',
           {

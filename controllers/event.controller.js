@@ -22,8 +22,8 @@ async function createEvent(req, res, next) {
             location: req.body.location,
             thumbnail: req.file,
             description: req.body.description,
-            startDateOfEvent: new Date(req.body.startDate),
-            endDateOfEvent: new Date(req.body.endDate)
+            startDateOfEvent: new Date(req.body.startDateOfEvent),
+            endDateOfEvent: new Date(req.body.endDateOfEvent)
         };
         const eventNote = await EventNote.createEvent(payload, {});
         return res.status(200).json({
@@ -47,8 +47,8 @@ async function updateEvent(req, res, next) {
             location: req.body.location,
             thumbnail: req.file,
             description: req.body.description,
-            startDateOfEvent: req.body.startDate && new Date(req.body.startDate),
-            endDateOfEvent: req.body.startDate && new Date(req.body.endDate)
+            startDateOfEvent: req.body.startDateOfEvent && new Date(req.body.startDateOfEvent),
+            endDateOfEvent: req.body.endDateOfEvent && new Date(req.body.endDateOfEvent)
         };
         await EventNote.updateEvent(payload, {});
         return res.status(200).json({
@@ -57,9 +57,6 @@ async function updateEvent(req, res, next) {
     } catch (e) {
         console.log(e);
         next(e);
-    }
-    finally {
-        clearTempFiles(req);
     }
 }
 

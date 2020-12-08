@@ -553,8 +553,8 @@ curl --location --request POST 'https://qevent.slar.ru/api/v2/event/admin' \
 --form 'description=Уже совсем скоро будет главное событие города - 
 запуск мобильного приложения, собирающие все события города
 в одном месте на официальном уровне.' \
---form 'startDate=2020-12-10T10:20:30Z' \
---form 'endDate=2020-12-12T10:20:30Z' \
+--form 'startDateOfEvent=2020-12-10T10:20:30Z' \
+--form 'endDateOfEvent=2020-12-12T10:20:30Z' \
 --form 'location=Ноябрьск, Россия' \
 --form 'kind=culture' \
 --form 'thumbnail=@noyabrsk.jpg'
