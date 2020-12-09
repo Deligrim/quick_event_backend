@@ -490,7 +490,6 @@ curl --location --request GET 'https://qevent.slar.ru/api/v2/user/self' \
 
 ```bash
 curl --location --request GET 'https://qevent.slar.ru/api/v2/user/from/20e2a0b6-2de3-4059-beab-3b9b2720efa7' \
---header 'Authorization: JWT' \
 ```
 
 #### Ответ:
