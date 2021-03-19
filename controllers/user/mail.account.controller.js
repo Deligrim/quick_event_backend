@@ -76,6 +76,7 @@ async function login(req, res, next) {
             success: true,
             token: `${token}`,
             userId: account.UserId,
+            userRole: account.User.role
         });
     } catch (error) {
         next(error);

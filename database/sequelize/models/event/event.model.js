@@ -213,13 +213,27 @@ module.exports = {
         timestamps: false
       }
     );
+    sequelize.define('Event_Gallery', {}, { timestamps: false });
   },
   assoc: (sequelize) => {
-    const { Image } = sequelize.models;
+    const { User, Image, Event_Organizator, Event_Gallery } = sequelize.models;
     EventNote.belongsTo(Image, {
       as: 'thumb',
       foreignKey: 'thumbId'
     });
+
+    EventNote.belongsToMany(Image, {
+      through: Event_Gallery,
+      as: 'Photos'
+    });
+
+    EventNote.belongsToMany(User, {
+      as: "Members", //Участники и организаторы
+      through: Event_Organizator,
+      foreignKey: "EventId",
+      otherKey: "UserId",
+    });
+
     EventNote.addScope("clientView", function (path = "") {
       return {
         attributes: [

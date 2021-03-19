@@ -128,4 +128,44 @@ async function deleteEvent(req, res, next) {
         next(e);
     }
 }
-module.exports = { createEvent, updateEvent, getEventsFeed, getEvent, deleteEvent };
+
+async function getMembersById(req, res, next) {
+    const { EventNote, User } = sequelize.models;
+    try {
+        let event = await EventNote.findByPk(req.params.id, {
+            include: {
+                model: User.scope({ method: ['preview', 'Members.'] }),
+                as: "Members",
+                through: {
+                    attributes: [],
+                },
+            },
+        });
+        if (!event)
+            return res.status(404).json({
+                success: false,
+                code: "notfound",
+                msg: "Event not found"
+            });
+
+        return res.status(200).json({
+            success: true,
+            membersCount: event.Members.length,
+            members: event.Members
+        });
+    }
+    catch (e) { next(e); }
+}
+
+// async function getOrganizatorsById(req, res, next) {
+
+// }
+
+module.exports = {
+    createEvent,
+    updateEvent,
+    getEventsFeed,
+    getEvent,
+    deleteEvent,
+    getMembersById
+};

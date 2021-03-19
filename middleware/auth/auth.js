@@ -27,6 +27,7 @@ async function authAdmin(req, res, next) {
             msg: "Authentication failed"
         });
     }
+    req.user = { role: "admin" }
     return next();
 }
 async function authToken(req, res, next) {

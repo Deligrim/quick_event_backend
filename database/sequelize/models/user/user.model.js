@@ -220,7 +220,7 @@ module.exports = {
             as: "OwnEvents", //События, над которыми юзер организатор
             through: Event_Organizator,
             foreignKey: "UserId",
-            otherKey: "EventId"
+            otherKey: "EventId",
         });
 
         User.addScope("preview",
@@ -230,6 +230,7 @@ module.exports = {
                         "id",
                         "firstName",
                         "lastName",
+                        "role",
                         [sequelize.fn('REPLACE',
                             sequelize.col(`${path}avatar.path`),
                             process.env.HOST_MASK,

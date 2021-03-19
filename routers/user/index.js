@@ -13,19 +13,30 @@ router.post('/register/local', upload.single('avatar'), mailAccountController.re
 router.post('/auth/local', mailAccountController.login); // Login user
 
 router.get('/from/:id', userController.getUserById);
+router.get('/from/:id/events', userController.getUsersEvents);
 
 router.get('/list/all', authAdmin, userController.getUsers);
 router.post('/create', authAdmin, upload.single('avatar'), mailAccountController.create);
+
+router.put('/from/:id/events/add/:eventId', authAdmin, userController.owningEventById);
+
+router.put('/from/:id/events/remove/:eventId', authAdmin, userController.stopOwningEventById);
+
 router.delete('/:id', authAdmin, userController.removeUser);
 
-router.use(authToken); // all routes below required authentication by token
+//router.use(authToken); // all routes below required authentication by token
 
 //router.post(process.env.createChatRoom, chatController.createRoom);
 //router.get(process.env.lastMessages, chatController.getLastGroupMessages);
+router.get('/self/events', authToken, userController.getMyEvents);
 
-router.get('/self', userController.getSelf);
-router.post('/self/avatar', upload.single('avatar'), userController.setupAvatar);
-router.delete('/self/avatar', userController.removeAvatar);
+router.put('/self/events/add/:eventId', authToken, userController.followEventById);
+
+router.put('/self/events/remove/:eventId', authToken, userController.stopFollowEventById);
+
+router.get('/self', authToken, userController.getSelf);
+router.post('/self/avatar', authToken, upload.single('avatar'), userController.setupAvatar);
+router.delete('/self/avatar', authToken, userController.removeAvatar);
 
 
 module.exports = router;
