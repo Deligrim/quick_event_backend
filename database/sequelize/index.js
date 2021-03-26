@@ -3,12 +3,13 @@ const { Sequelize } = require("sequelize");
 require("./types");
 // Option 2: Passing parameters separately (other dialects)
 const sequelize = new Sequelize(
-  process.env.MYSQL_DB,
-  process.env.MYSQL_USER,
-  process.env.MYSQL_PASSWORD,
+  process.env.DBMS_DB,
+  process.env.DBMS_USER,
+  process.env.DBMS_PASSWORD,
   {
-    host: process.env.MYSQL_HOST,
-    dialect: process.env.MYSQL_DIALECT,
+    host: process.env.DBMS_HOST,
+    dialect: process.env.DBMS_DIALECT,
+
   }
 );
 
@@ -19,6 +20,10 @@ const modelDefiners = [
   require("./models/user/user.model"),
   require("./models/user/mail.account.model"),
   require("./models/user/vk.account.model"),
+
+  require("./models/event/event.city.model"),
+  require("./models/event/tag.model"),
+  require("./models/event/event.schedule.note.model"),
 
   require("./models/event/event.model"),
 ];

@@ -1,4 +1,4 @@
-const { DataTypes, Model } = require("sequelize");
+const { DataTypes, Model, Op } = require("sequelize");
 const {
   ValidationError,
   ValidationErrorItem,
@@ -8,46 +8,61 @@ const _ = require("lodash");
 class EventNote extends Model {
 
   static async createEvent(payload, options) {
-    const { Image } = sequelize.models;
-    options = require("lodash").defaults(options, {
+    const { Image, Tag, EventCity, EventScheduleNote } = sequelize.models;
+    options = _.defaults(options, {
       transaction: null
     });
     var transaction = options.transaction || (await sequelize.transaction());
     try {
-      if (!(payload.endDateOfEvent instanceof Date) || isNaN(payload.endDateOfEvent) ||
-        !(payload.startDateOfEvent instanceof Date) || isNaN(payload.startDateOfEvent) ||
-        payload.endDateOfEvent < payload.startDateOfEvent)
+      //find city
+      const city = await EventCity.findByPk(payload.regionId, { transaction });
+      if (!city) {
         throw new ValidationError(null, [
-          new ValidationErrorItem(
-            "End date must be valid and cannot be and earlier than start",
-            null,
-            "payload.endDateOfEvent",
-            payload.endDateOfEvent
-          ),
+          new ValidationErrorItem('City not found', 'Validation error', 'regionId')
         ]);
-
-      const thumbnail = await Image.createImage(
-        payload.thumbnail.buffer,
-        payload.title,
-        'thumbnail',
-        {
-          resizeArgs: {
-            withoutEnlargement: true,
-            height: 1024,
-            width: 1024,
-          },
-          saveOptions: { transaction }
-        });
-
+      }
+      //create event and link to city
       const newEvent = await EventNote.create({
         title: payload.title,
         description: payload.description,
-        startDateOfEvent: payload.startDateOfEvent,
-        endDateOfEvent: payload.endDateOfEvent,
-        location: payload.location,
-        kind: payload.kind,
-        thumbId: thumbnail.id,
+        regionId: city.id
       }, { transaction });
+      //create and link schedules
+      for (let i = 0; i < payload.schedule.length; i++) {
+        await EventScheduleNote.createEventScheduleNote(
+          {
+            ...payload.schedule[i],
+            eventId: newEvent.id
+          }
+          , { transaction });
+        //await newEvent.addSchedule(scheduleNote, { transaction });
+      }
+      //create and link images
+      for (let i = 0; i < payload.photos.length; i++) {
+        const galleryPhoto = await Image.createImage(
+          payload.photos[i],
+          payload.title,
+          'picture' + i,
+          {
+            resizeArgs: {
+              withoutEnlargement: true,
+              height: 1024,
+              width: 1024,
+            },
+            saveOptions: { transaction }
+          });
+        await newEvent.addPhoto(galleryPhoto, { transaction, through: { index: i } });
+      }
+      //link tags
+      for (let i = 0; i < payload.tags.length; i++) {
+        const tag = await Tag.findByPk(payload.tags[i], { transaction });
+        if (!tag) {
+          throw new ValidationError(null, [
+            new ValidationErrorItem('Tag not found', 'Validation error', `tags[${i}]`)
+          ]);
+        }
+        await newEvent.addTag(tag, { transaction });
+      }
       if (!options.transaction) transaction.commit().catch(() => {/*rollback already call*/ });
       return newEvent;
     }
@@ -58,70 +73,95 @@ class EventNote extends Model {
   }
 
   static async updateEvent(payload, options) {
-    const { Image } = sequelize.models;
-    options = require("lodash").defaults(options, {
+    const { Image, Tag, EventCity, EventScheduleNote } = sequelize.models;
+    options = _.defaults(options, {
       transaction: null
     });
     var transaction = options.transaction || (await sequelize.transaction());
     try {
       const eventNote = await EventNote.findByPk(payload.id, { transaction });
-      console.log(eventNote);
       if (!eventNote) {
         throw new ValidationError(null, [
           new ValidationErrorItem(
             "Event not exist in database",
             null,
-            "payload.id",
+            "id",
             null
           ),
         ]);
       }
-      payload = _.defaults(_.pick(payload,
-        ['title',
-          'kind',
-          'location',
-          'description',
-          'startDateOfEvent',
-          'endDateOfEvent',
-          'thumbnail']),
+      payload = _.defaults(payload,
         {
           title: eventNote.title,
-          kind: eventNote.kind,
-          location: eventNote.location,
           description: eventNote.description,
-          startDateOfEvent: eventNote.startDateOfEvent,
-          endDateOfEvent: eventNote.endDateOfEvent
+          regionId: eventNote.regionId
         });
-      if (!(payload.endDateOfEvent instanceof Date) || isNaN(payload.endDateOfEvent) ||
-        !(payload.startDateOfEvent instanceof Date) || isNaN(payload.startDateOfEvent) ||
-        payload.endDateOfEvent < payload.startDateOfEvent)
-        throw new ValidationError(null, [
-          new ValidationErrorItem(
-            "End date must be valid and cannot be and earlier than start",
-            null,
-            "payload.endDateOfEvent",
-            payload.endDateOfEvent
-          ),
-        ]);
-      if (payload.thumbnail) {
-        const thumb = await eventNote.getThumb({ transaction });
-        await thumb.destroyImage({ transaction });
-        const newThumbnail = await Image.createImage(
-          payload.thumbnail.buffer,
-          payload.title,
-          'thumbnail',
-          {
-            resizeArgs: {
-              withoutEnlargement: true,
-              height: 1024,
-              width: 1024,
-            },
-            saveOptions: { transaction }
-          });
-        await eventNote.setThumb(newThumbnail, { transaction });
+      if (payload.regionId != eventNote.regionId) {
+        const city = await EventCity.findByPk(payload.regionId, { transaction });
+        if (!city) {
+          throw new ValidationError(null, [
+            new ValidationErrorItem('City not found', 'Validation error', 'regionId')
+          ]);
+        }
       }
-      _.assign(eventNote, _.omit(payload, ['thumbnail']))
+      _.assign(eventNote, _.pick(payload, ['title', 'description', 'regionId']))
       await eventNote.save({ transaction });
+      if (payload.schedule && payload.schedule.length > 0) {
+        const oldSchedules = await eventNote.getSchedules({ transaction });
+        for (let i = 0; i < oldSchedules.length; i++) {
+          await oldSchedules[i].destroyEventScheduleNote({ transaction });
+        }
+        for (let i = 0; i < payload.schedule.length; i++) {
+          await EventScheduleNote.createEventScheduleNote(
+            {
+              ...payload.schedule[i],
+              eventId: eventNote.id
+            }
+            , { transaction });
+        }
+      }
+      if (payload.tags && payload.tags.length > 0) {
+        //await eventNote.removeTags({ transaction });
+        let tags = [];
+        for (let i = 0; i < payload.tags.length; i++) {
+          const tag = await Tag.findByPk(payload.tags[i], { transaction });
+          if (!tag) {
+            throw new ValidationError(null, [
+              new ValidationErrorItem('Tag not found', 'Validation error', `tags[${i}]`)
+            ]);
+          }
+          tags.push(tag);
+        }
+        if (tags.length < payload.tags.length) {
+          throw new ValidationError(null, [
+            new ValidationErrorItem('Some tag not found', 'Validation error',
+              payload.tags.filter(x => tags.every(t => t.title !== x)))
+          ]);
+        }
+        await eventNote.setTags(tags, { transaction });
+      }
+      if (payload.photos && payload.photos.length > 0) {
+
+        const oldPhotos = await eventNote.getPhotos({ transaction });
+        for (let i = 0; i < oldPhotos.length; i++) {
+          await oldPhotos[i].destroyImage({ transaction, deleteDir: false });
+        }
+        for (let i = 0; i < payload.photos.length; i++) {
+          const galleryPhoto = await Image.createImage(
+            payload.photos[i],
+            payload.title,
+            'picture' + i,
+            {
+              resizeArgs: {
+                withoutEnlargement: true,
+                height: 1024,
+                width: 1024,
+              },
+              saveOptions: { transaction }
+            });
+          await eventNote.addPhoto(galleryPhoto, { transaction, through: { index: i } });
+        }
+      }
       if (!options.transaction)
         transaction.commit().catch(() => {/*rollback already call*/ });
       return eventNote;
@@ -135,8 +175,15 @@ class EventNote extends Model {
   async destroyEvent(options) {
     var transaction = options && options.transaction || (await sequelize.transaction());
     try {
-      const thumb = await this.getThumb({ transaction });
-      await thumb.destroyImage({ transaction });
+      const oldSchedules = await this.getSchedules({ transaction });
+      for (let i = 0; i < oldSchedules.length; i++) {
+        await oldSchedules[i].destroyEventScheduleNote({ transaction });
+      }
+      const oldPhotos = await this.getPhotos({ transaction });
+      for (let i = 0; i < oldPhotos.length; i++) {
+        await oldPhotos[i].destroyImage({ transaction });
+      }
+      //todo : impl other delete
       await this.destroy({ transaction });
       if (!options || !options.transaction) await transaction.commit();
     }
@@ -144,6 +191,26 @@ class EventNote extends Model {
       if (!options || !options.transaction) await transaction.rollback();
       throw e;
     }
+  }
+  toJSON() {
+    let attributes = Object.assign({}, this.get())
+    if (attributes.Tags) {
+      for (let i = 0; i < attributes.Tags.length; i++) {
+        attributes.Tags[i] = attributes.Tags[i].title;
+      }
+    }
+    if (attributes.membersCount) {
+      attributes.membersCount = +attributes.membersCount;
+    }
+    if (this.constructor._scopeNames.includes("preview")) {
+      attributes = { thumbPhoto: attributes.Photos[0].path, ...attributes };
+      delete attributes.Photos;
+    }
+    else if (this.constructor._scopeNames.includes("clientView")) {
+      attributes.Photos = attributes.Photos.map((v => v.path));
+    }
+
+    return attributes
   }
 }
 
@@ -171,41 +238,6 @@ module.exports = {
             len: [0, 1400]
           }
         },
-        startDateOfEvent: {
-          allowNull: false,
-          type: DataTypes.DATE,
-        },
-        endDateOfEvent: {
-          allowNull: false,
-          type: DataTypes.DATE,
-        },
-        location: {
-          allowNull: false,
-          type: DataTypes.STRING,
-          validate: {
-            len: [2, 100]
-          }
-        },
-        kind: {
-          allowNull: false,
-          defaultValue: 'other',
-          type: DataTypes.STRING,
-          validate: {
-            isIn: {
-              args: [['other', 'sport', 'culture', 'youth', 'concert', 'theatre', 'contest', 'festival', 'stock']],
-              msg: "The event type must be one of the valid list"
-            }
-          }
-        },
-        status: {
-          type: DataTypes.VIRTUAL,
-          get() {
-            const now = new Date();
-            if (now < this.startDateOfEvent) return "pending"
-            if (now < this.endDateOfEvent) return "in progress"
-            return "done"
-          }
-        }
       },
       {
         sequelize,
@@ -213,72 +245,124 @@ module.exports = {
         timestamps: false
       }
     );
-    sequelize.define('Event_Gallery', {}, { timestamps: false });
+    sequelize.define('Event_Gallery', { index: DataTypes.INTEGER }, { timestamps: false });
+    sequelize.define('Event_Tags', {}, { timestamps: false });
   },
   assoc: (sequelize) => {
-    const { User, Image, Event_Organizator, Event_Gallery } = sequelize.models;
-    EventNote.belongsTo(Image, {
-      as: 'thumb',
-      foreignKey: 'thumbId'
+    const { User, Image, Event_Members, Event_Gallery, EventScheduleNote, EventCity, Tag, Event_Tags } = sequelize.models;
+
+    // EventNote.belongsTo(Image, {
+    //   as: 'thumb',
+    //   foreignKey: 'thumbId'
+    // });
+    EventNote.hasMany(EventScheduleNote, {
+      as: 'Schedules',
+      foreignKey: 'eventId'
     });
+    EventNote.belongsTo(EventCity, {
+      as: 'region',
+      foreignKey: 'regionId'
+    });
+
 
     EventNote.belongsToMany(Image, {
       through: Event_Gallery,
-      as: 'Photos'
+      as: 'Photos' // Промо-фотографии события
     });
-
+    EventNote.belongsToMany(Tag, {
+      as: "Tags", //Теги события
+      through: Event_Tags,
+      foreignKey: "EventId",
+      otherKey: "Tag",
+    });
     EventNote.belongsToMany(User, {
       as: "Members", //Участники и организаторы
-      through: Event_Organizator,
+      through: Event_Members,
       foreignKey: "EventId",
       otherKey: "UserId",
     });
 
-    EventNote.addScope("clientView", function (path = "") {
+    EventNote.addScope("clientView", function (alias = "EventNote") {
       return {
         attributes: [
           "id",
           "title",
           "description",
-          "location",
-          "startDateOfEvent",
-          "endDateOfEvent",
-          "kind",
-          "status",
-          [sequelize.fn('REPLACE',
-            sequelize.col(`${path}thumb.path`),
-            process.env.HOST_MASK,
-            process.env.APP_HOST),
-            `thumbImg`]
+          [sequelize.literal(`(SELECT COUNT(*) FROM "Event_Members" WHERE "Event_Members"."EventId" = "${alias}"."id")`),
+            'membersCount'],
         ],
-        include: {
-          attributes: [],
-          model: Image,
-          as: "thumb"
-        }
+        include: [
+          {
+            model: EventCity.scope('preview'),
+            as: "region"
+          },
+          {
+            model: Image.scope("onlyPath"),
+            attributes: ['path'],
+            as: "Photos",
+            through: {
+              attributes: [],
+            }
+          },
+          {
+            model: Tag,
+            as: "Tags",
+            through: { attributes: [] }
+          },
+          {
+            model: EventScheduleNote.scope('clientView'),
+            as: "Schedules"
+          },
+        ]
       }
     });
-    EventNote.addScope("preview", function (path = "") {
+    EventNote.addScope("preview", function (alias = "EventNote") {
       return {
         attributes: [
           "id",
           "title",
-          "startDateOfEvent",
-          "endDateOfEvent",
-          "kind",
-          "status",
-          [sequelize.fn('REPLACE',
-            sequelize.col(`${path}thumb.path`),
-            process.env.HOST_MASK,
-            process.env.APP_HOST),
-            `thumbImg`]
+          [sequelize.literal(`(SELECT COUNT(*) FROM "Event_Members" WHERE "Event_Members"."EventId" = "${alias}"."id")`),
+            'membersCount'],
         ],
-        include: {
-          attributes: [],
-          model: Image,
-          as: "thumb"
-        }
+        include: [
+          {
+            model: EventCity.scope('preview'),
+            as: "region"
+          },
+          {
+            model: Image.scope("onlyPath"),
+            attributes: ['path'],
+            as: "Photos",
+            through: {
+              attributes: [],
+              where: {
+                index: 0
+              }
+            }
+          },
+          {
+            model: Tag,
+            as: "Tags",
+            through: { attributes: [] }
+          },
+          {
+            model: EventScheduleNote.scope('clientView'),
+            as: "Schedules"
+          },
+
+        ]
       }
     });
+    // EventNote.addHook("afterFind", result => {
+    //   if (!result) return;
+    //   let findResult = !Array.isArray(result) ? [result] : result;
+    //   for (const instance of findResult) {
+    //     if (!instance.Tags) continue;
+    //     instance.tags = [];
+    //     for (let i = 0; i < instance.Tags.length; i++) {
+    //       instance.Tags[i] = instance.Tags[i].title;
+    //     }
+    //   }
+    // });
   },
 };

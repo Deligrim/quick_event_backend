@@ -103,7 +103,7 @@ class Image extends Model {
         const delFile = () =>
           fsUtils.deleteFile(
             envUtils.globalToLocal(imgEnc),
-            true,
+            options.deleteDir,
             options && options.untilDir
           );
         if (options && options.transaction)

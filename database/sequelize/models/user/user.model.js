@@ -203,10 +203,10 @@ module.exports = {
                 modelName: "User", // We need to choose the model 
             }
         );
-        sequelize.define('Event_Organizator', {}, { timestamps: false });
+        sequelize.define('Event_Members', {}, { timestamps: false });
     },
     assoc: (sequelize) => {
-        const { MailAccount, Image, EventNote, Event_Organizator } = sequelize.models;
+        const { MailAccount, Image, EventNote, Event_Members } = sequelize.models;
 
         User.belongsTo(Image, {
             as: "avatar",
@@ -215,10 +215,10 @@ module.exports = {
 
         User.hasOne(MailAccount, { onDelete: 'cascade' });
 
-        //Add self-reference super many-to-many relationship accociacion
+        //Add many-to-many relationship accociacion
         User.belongsToMany(EventNote, {
-            as: "OwnEvents", //События, над которыми юзер организатор
-            through: Event_Organizator,
+            as: "OwnEvents", //События, в которых юзер организатор или участник (зависит от роли)
+            through: Event_Members,
             foreignKey: "UserId",
             otherKey: "EventId",
         });
@@ -262,7 +262,6 @@ module.exports = {
                 as: "avatar",
                 attributes: []
             }],
-            group: 'avatar.id' //confirm the one-to-one relationship
         });
         //User.addScope("includeMarkers", {
         // include: [Marker.scope("clientView"), { model: Marker, as: "marker_binds" }]
