@@ -79,6 +79,40 @@ async function getEventsFeed(req, res, next) {
         next(e);
     }
 }
+
+async function getNearestEvents(req, res, next) {
+    const { EventNote } = sequelize.models;
+    try {
+        let { log, lat, lim } = req.query;
+        if (!log || !lat)
+            return res.status(400).json({
+                success: false,
+                msg: "log and lat query params is required!"
+            });
+        else {
+            log = +log;
+            lat = +lat;
+        }
+        const events = await EventNote.scope({
+            method: ['orderPointDistance', [log, lat], lim]
+        }).findAll();
+
+        if (events)
+            return res.status(200).json({
+                success: true,
+                events
+            });
+        else
+            return res.status(404).json({
+                success: false,
+                msg: "Events not exist!"
+            });
+    }
+    catch (e) {
+        next(e);
+    }
+}
+
 async function getEvent(req, res, next) {
     const { EventNote } = sequelize.models;
     try {
@@ -273,6 +307,7 @@ module.exports = {
     createEvent,
     updateEvent,
     getEventsFeed,
+    getNearestEvents,
     getEvent,
     deleteEvent,
     getMembersById,

@@ -202,11 +202,11 @@ class EventNote extends Model {
     if (attributes.membersCount) {
       attributes.membersCount = +attributes.membersCount;
     }
-    if (this.constructor._scopeNames.includes("preview")) {
+    if (this.constructor._scopeNames.includes("preview") || this.constructor._scopeNames.includes("orderPointDistance")) {
       attributes = { thumbPhoto: attributes.Photos[0].path, ...attributes };
       delete attributes.Photos;
     }
-    else if (this.constructor._scopeNames.includes("clientView")) {
+    else if (attributes.Photos) {
       attributes.Photos = attributes.Photos.map((v => v.path));
     }
 
@@ -316,6 +316,48 @@ module.exports = {
         ]
       }
     });
+    EventNote.addScope("orderPointDistance", function (coors = [33, 44], limit = 10, alias = "EventNote") {
+      return {
+        attributes: [
+          "id",
+          "title",
+          [sequelize.literal(`(SELECT COUNT(*) FROM "Event_Members" WHERE "Event_Members"."EventId" = "${alias}"."id")`), 'membersCount'],
+          //[sequelize.literal(`("Schedules"."location"::point <@> '(${coors[0]}, ${coors[1]})')::numeric * 1.609344`), 'distance']
+        ],
+        include: [
+          {
+            model: EventCity.scope('preview'),
+            as: "region"
+          },
+          {
+            model: Image.scope("onlyPath"),
+            attributes: ['path'],
+            as: "Photos",
+            through: {
+              attributes: [],
+              where: {
+                index: 0
+              }
+            }
+          },
+          {
+            model: Tag,
+            as: "Tags",
+            through: { attributes: [] }
+          },
+          {
+            model: EventScheduleNote.scope({
+              method: ['pointDistance', coors, "Schedules"]
+            }),
+            as: "Schedules"
+          },
+
+        ],
+        order: [sequelize.literal(`"Schedules.distance"`)],
+
+      }
+    });
+
     EventNote.addScope("preview", function (alias = "EventNote") {
       return {
         attributes: [
@@ -353,16 +395,5 @@ module.exports = {
         ]
       }
     });
-    // EventNote.addHook("afterFind", result => {
-    //   if (!result) return;
-    //   let findResult = !Array.isArray(result) ? [result] : result;
-    //   for (const instance of findResult) {
-    //     if (!instance.Tags) continue;
-    //     instance.tags = [];
-    //     for (let i = 0; i < instance.Tags.length; i++) {
-    //       instance.Tags[i] = instance.Tags[i].title;
-    //     }
-    //   }
-    // });
   },
 };

@@ -5,6 +5,7 @@ const router = require("express").Router();
 const {
     createEvent,
     getEventsFeed,
+    getNearestEvents,
     getEvent,
     deleteEvent,
     updateEvent,
@@ -22,6 +23,7 @@ router.delete("/remove/:id", auth.authAdmin, deleteEvent);
 router.put("/update/:id", auth.authAdmin, updateEvent);
 
 router.get("/", getEventsFeed);
+router.get("/nearest", getNearestEvents);
 router.get("/:id", getEvent);
 router.get("/:id/members", getMembersById);
 

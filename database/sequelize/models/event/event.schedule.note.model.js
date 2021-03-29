@@ -60,6 +60,9 @@ class EventScheduleNote extends Model {
             attributes.latitude = attributes.location.coordinates[1];
             delete attributes.location;
         }
+        if (attributes.distance) {
+            attributes.distance = +attributes.distance;
+        }
         if (this.constructor._scopeNames.includes("clientView")) {
             delete attributes.id;
         }
@@ -122,6 +125,14 @@ module.exports = {
         });
         EventScheduleNote.addScope("clientView", {
             attributes: ['id', 'dateFrom', 'dateTo', 'address', 'location'],
+        });
+        EventScheduleNote.addScope("pointDistance", function (coors = [33, 44], alias = "Schedules") {
+            return {
+                attributes: [
+                    'id', 'dateFrom', 'dateTo', 'address', 'location',
+                    [sequelize.literal(`("${alias}"."location"::point <@> '(${coors[0]}, ${coors[1]})')::numeric * 1.609344`), 'distance']
+                ],
+            }
         });
     }
 }
