@@ -13,7 +13,8 @@ const {
     owningEventById,
     stopOwningEventById,
     followEventById,
-    stopFollowEventById
+    stopFollowEventById,
+    getPostsById
 } = require("../../controllers/event/event.controller");
 
 const auth = require.main.require('./middleware/auth/auth.js');
@@ -26,6 +27,7 @@ router.get("/", getEventsFeed);
 router.get("/nearest", getNearestEvents);
 router.get("/:id", getEvent);
 router.get("/:id/members", getMembersById);
+router.get("/:id/posts", getPostsById);
 
 router.put('/:eventId/organizeBy/:id', auth.authAdmin, owningEventById);
 

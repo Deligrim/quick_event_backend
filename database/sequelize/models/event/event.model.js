@@ -183,6 +183,10 @@ class EventNote extends Model {
       for (let i = 0; i < oldPhotos.length; i++) {
         await oldPhotos[i].destroyImage({ transaction });
       }
+      const posts = await this.getPosts({ transaction });
+      for (let i = 0; i < posts.length; i++) {
+        await posts[i].destroyPostRecord({ transaction });
+      }
       //todo : impl other delete
       await this.destroy({ transaction });
       if (!options || !options.transaction) await transaction.commit();
@@ -202,8 +206,9 @@ class EventNote extends Model {
     if (attributes.membersCount) {
       attributes.membersCount = +attributes.membersCount;
     }
-    if (this.constructor._scopeNames.includes("preview") || this.constructor._scopeNames.includes("orderPointDistance")) {
-      attributes = { thumbPhoto: attributes.Photos[0].path, ...attributes };
+    const scope = this.constructor._scopeNames;
+    if (scope.includes("preview") || scope.includes("orderPointDistance") || scope.includes("micro")) {
+      attributes = { thumbnail: attributes.Photos[0].path, ...attributes };
       delete attributes.Photos;
     }
     else if (attributes.Photos) {
@@ -249,7 +254,7 @@ module.exports = {
     sequelize.define('Event_Tags', {}, { timestamps: false });
   },
   assoc: (sequelize) => {
-    const { User, Image, Event_Members, Event_Gallery, EventScheduleNote, EventCity, Tag, Event_Tags } = sequelize.models;
+    const { User, Image, Event_Members, Event_Gallery, EventScheduleNote, EventCity, Tag, Event_Tags, PostRecord } = sequelize.models;
 
     // EventNote.belongsTo(Image, {
     //   as: 'thumb',
@@ -257,6 +262,10 @@ module.exports = {
     // });
     EventNote.hasMany(EventScheduleNote, {
       as: 'Schedules',
+      foreignKey: 'eventId'
+    });
+    EventNote.hasMany(PostRecord, {
+      as: 'Posts',
       foreignKey: 'eventId'
     });
     EventNote.belongsTo(EventCity, {
@@ -357,7 +366,26 @@ module.exports = {
 
       }
     });
-
+    EventNote.addScope("micro", function (alias = "EventNote") {
+      return {
+        attributes: [
+          "id"
+        ],
+        include: [
+          {
+            model: Image.scope("onlyPath"),
+            attributes: ['path'],
+            as: "Photos",
+            through: {
+              attributes: [],
+              where: {
+                index: 0
+              }
+            }
+          },
+        ]
+      }
+    });
     EventNote.addScope("preview", function (alias = "EventNote") {
       return {
         attributes: [

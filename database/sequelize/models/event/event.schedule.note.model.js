@@ -63,7 +63,8 @@ class EventScheduleNote extends Model {
         if (attributes.distance) {
             attributes.distance = +attributes.distance;
         }
-        if (this.constructor._scopeNames.includes("clientView")) {
+        const scope = this.constructor._scopeNames;
+        if (scope.includes("clientView") || scope.includes("pointDistance")) {
             delete attributes.id;
         }
         return attributes

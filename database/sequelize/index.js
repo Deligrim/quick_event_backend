@@ -16,6 +16,7 @@ const sequelize = new Sequelize(
 const modelDefiners = [
 
   require("./models/media/image.model"),
+  require("./models/media/video.model"),
 
   require("./models/user/user.model"),
   require("./models/user/mail.account.model"),
@@ -26,6 +27,7 @@ const modelDefiners = [
   require("./models/event/event.schedule.note.model"),
 
   require("./models/event/event.model"),
+  require("./models/post/post.model"),
 ];
 
 // We define all models according to their files.

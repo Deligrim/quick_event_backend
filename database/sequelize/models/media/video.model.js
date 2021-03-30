@@ -3,7 +3,7 @@ const {
     ValidationError,
     ValidationErrorItem,
 } = require("sequelize/lib/errors");
-
+const util = require('util');
 const envUtils = require("../../../../utils-modules/environment.utils");
 const fsUtils = require("../../../../utils-modules/filesystem.utils");
 const {
@@ -18,8 +18,10 @@ const moment = require("moment");
 
 class Video extends Model {
     //to do: add full support transaction in fs level
-
-    static async createVideo(tempInputPath, options, done) {
+    static async createPromicedVideo(tempInputPath, options) {
+        return await util.promisify(createVideo)(tempInputPath, options);
+    }
+    static async createVideo(tempInputPath, options, cb) {
         const { Image } = sequelize.models;
         options = _.defaults(options, {
             /* New path option */
@@ -35,7 +37,6 @@ class Video extends Model {
             bitrate: 1300,
             fps: 25,
             format: "mp4",
-            rotation: 0,
             withThumb: true,
             thumbnailSize: '512x?'
         });
@@ -51,7 +52,7 @@ class Video extends Model {
         const outLocalPath = `${process.env.INTERNAL_PUBLIC_PATH}${process.env.VIDEOS_PATH
             }/${md5group}/${namePath}`;
         await fsUtils.createDir(outLocalPath);
-        let video = Video.build({ rotation: options.rotation });
+        let video = Video.build({});
         video.setDataValue("path", envUtils.localToEncoded(outLocalPath));
         video = await video.save({ transaction: options.transaction });
 
@@ -64,7 +65,6 @@ class Video extends Model {
                 "resolution",
                 "bitrate",
                 "format",
-                "rotation",
                 "fps",
             ]),
         });
@@ -99,10 +99,10 @@ class Video extends Model {
                         fields: ["status"],
                         transaction: options.transaction,
                     });
-                    if (done) done(null, video);
+                    if (cb) cb(null, video);
                 } catch (e) {
                     fsUtils.deleteFile(outLocalPath, true, 'videos');
-                    if (done) done(e);
+                    if (cb) cb(e);
                 }
             })
             .on("error", async function (error) {
@@ -114,10 +114,10 @@ class Video extends Model {
                         fields: ["status"],
                         transaction: options.transaction,
                     });
-                    if (done) done(err, video);
+                    if (cb) cb(err, video);
                     fsUtils.deleteFile(outLocalPath, true, 'videos');
                 } catch (e) {
-                    if (done) done(e);
+                    if (cb) cb(e);
                 }
             })
             .on("failed", async function (job, err) {
@@ -132,10 +132,10 @@ class Video extends Model {
                         transaction: options.transaction,
                     });
 
-                    if (done) done(err, video);
+                    if (cb) cb(err, video);
 
                 } catch (e) {
-                    if (done) done(e);
+                    if (cb) cb(e);
                 }
             });
 
@@ -178,9 +178,12 @@ class Video extends Model {
         // attributes.globalPath = this.globalPath; //manual binding virtual field :(
         // delete attributes.path;
         //remap avatar for clientView scope
-        attributes.thumbnailUrl = attributes.thumbnail.path;
-        delete attributes.thumbnail;
-
+        if (attributes.thumbnail)
+            attributes.thumbnail = attributes.thumbnail.path;
+        const scope = this.constructor._scopeNames;
+        if (scope.includes("clientView")) {
+            delete attributes.id;
+        }
         return attributes
     }
 }
@@ -229,7 +232,7 @@ module.exports = {
             //onDelete: 'RESTRICT'
         }); //FK in Video
         Video.addScope("clientView", {
-            attributes: ["id", "path", "status"],
+            attributes: ['id', 'path', 'status'],
             include: {
                 model: Image,
                 as: "thumbnail",

@@ -17,9 +17,9 @@ videoQueue.process((job, done) => {
     //command.addOption('-threads','1');
     const aspect = videoInfo.width / videoInfo.height;
     //legacy behavior
-    const orint = options.rotation == 90 ? 2 : 1;
-    let param = "transpose=" + orint;
-    if (options.rotation == 180) param = param + "," + param;
+    // const orint = options.rotation == 90 ? 2 : 1;
+    // let param = "transpose=" + orint;
+    // if (options.rotation == 180) param = param + "," + param;
 
     if (aspect < 1) {
         if (videoInfo.width > options.resolution)
@@ -28,8 +28,8 @@ videoQueue.process((job, done) => {
         command = command.size(`?x${options.resolution}`);
     }
 
-    if (options.rotation != 0)
-        command = command.videoFilters(param);
+    // if (options.rotation != 0)
+    //     command = command.videoFilters(param);
     command
         .toFormat(options.format)
         .on("start", (commandLine) => {

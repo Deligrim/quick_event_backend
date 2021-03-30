@@ -7,7 +7,7 @@ const {
     ValidationError,
     ValidationErrorItem,
 } = require("sequelize/lib/errors");
-
+const uuid = require('uuid');
 
 const uploadPhotos = jsUtils.promisify(
     multer().array('photos', 15)
@@ -42,7 +42,13 @@ async function createEvent(req, res, next) {
 async function updateEvent(req, res, next) {
     const { EventNote } = sequelize.models;
     try {
+
         await uploadPhotos(req, res);
+        if (!uuid.validate(req.params.id))
+            return res.status(400).json({
+                success: false,
+                msg: "id param is required uuid!"
+            });
         const payload = {
             ...eventSchema.validate(req.body, false).instance,
             photos: req.files.map(x => x.buffer),
@@ -116,10 +122,10 @@ async function getNearestEvents(req, res, next) {
 async function getEvent(req, res, next) {
     const { EventNote } = sequelize.models;
     try {
-        if (!req.params.id)
+        if (!uuid.validate(req.params.id))
             return res.status(400).json({
                 success: false,
-                msg: "id param is required!"
+                msg: "id param is required uuid!"
             });
         const eventNote = await EventNote.scope("clientView").findByPk(req.params.id);
         if (eventNote)
@@ -140,6 +146,11 @@ async function getEvent(req, res, next) {
 async function deleteEvent(req, res, next) {
     const { EventNote } = sequelize.models;
     try {
+        if (!uuid.validate(req.params.id))
+            return res.status(400).json({
+                success: false,
+                msg: "id param is required uuid!"
+            });
         const id = req.params.id;
         const eventNote = await EventNote.findByPk(id);
         if (eventNote) {
@@ -164,6 +175,11 @@ async function deleteEvent(req, res, next) {
 async function getMembersById(req, res, next) {
     const { EventNote, User } = sequelize.models;
     try {
+        if (!uuid.validate(req.params.id))
+            return res.status(400).json({
+                success: false,
+                msg: "id param is required uuid!"
+            });
         let event = await EventNote.findByPk(req.params.id, {
             include: {
                 model: User.scope({ method: ['preview', 'Members.'] }),
@@ -188,9 +204,43 @@ async function getMembersById(req, res, next) {
     }
     catch (e) { next(e); }
 }
+async function getPostsById(req, res, next) {
+    const { EventNote } = sequelize.models;
+    try {
+        if (!uuid.validate(req.params.id))
+            return res.status(400).json({
+                success: false,
+                msg: "id param is required uuid!"
+            });
+        let event = await EventNote.findByPk(req.params.id);
+        if (!event)
+            return res.status(404).json({
+                success: false,
+                code: "notfound",
+                msg: "Event not found"
+            });
+        const posts = await event.getPosts({ scope: 'withoutEvent' });
+        return res.status(200).json({
+            success: true,
+            postsCount: posts.length,
+            posts
+        });
+    }
+    catch (e) { next(e); }
+}
 //admin
 async function owningEventById(req, res, next) {
     const { User, EventNote } = sequelize.models;
+    if (!uuid.validate(req.params.eventId))
+        return res.status(400).json({
+            success: false,
+            msg: "eventId param is required uuid!"
+        });
+    if (!uuid.validate(req.params.id))
+        return res.status(400).json({
+            success: false,
+            msg: "id param is required uuid!"
+        });
     const eventId = req.params.eventId;
     const userId = req.params.id;
     try {
@@ -219,6 +269,16 @@ async function owningEventById(req, res, next) {
 async function stopOwningEventById(req, res) {
     const eventId = req.params.eventId;
     const userId = req.params.id;
+    if (!uuid.validate(eventId))
+        return res.status(400).json({
+            success: false,
+            msg: "eventId param is required uuid!"
+        });
+    if (!uuid.validate(userId))
+        return res.status(400).json({
+            success: false,
+            msg: "id param is required uuid!"
+        });
     const { User, EventNote } = sequelize.models;
     try {
         let user = await User.findByPk(userId);
@@ -252,6 +312,11 @@ async function stopOwningEventById(req, res) {
 async function followEventById(req, res, next) {
     const { User, EventNote } = sequelize.models;
     const eventId = req.params.eventId;
+    if (!uuid.validate(eventId))
+        return res.status(400).json({
+            success: false,
+            msg: "eventId param is required uuid!"
+        });
     try {
         let myself = await User.findByPk(req.user.id);
         let event = await EventNote.findByPk(eventId);
@@ -275,6 +340,11 @@ async function followEventById(req, res, next) {
 
 async function stopFollowEventById(req, res) {
     const eventId = req.params.eventId;
+    if (!uuid.validate(eventId))
+        return res.status(400).json({
+            success: false,
+            msg: "eventId param is required uuid!"
+        });
     const { User, EventNote } = sequelize.models;
     try {
         let myself = await User.findByPk(req.user.id);
@@ -314,5 +384,6 @@ module.exports = {
     owningEventById,
     stopOwningEventById,
     followEventById,
-    stopFollowEventById
+    stopFollowEventById,
+    getPostsById
 };
