@@ -129,11 +129,6 @@ class PostRecord extends Model {
 
     toJSON() {
         let attributes = Object.assign({}, this.get())
-        // if (attributes.location) {
-        //     attributes.longitude = attributes.location.coordinates[0];
-        //     attributes.latitude = attributes.location.coordinates[1];
-        //     delete attributes.location;
-        // }
         if (attributes.Images) {
             attributes.Images = attributes.Images.map((v => v.path));
         }
@@ -220,7 +215,8 @@ module.exports = {
                     model: User.scope({ method: ['preview', 'Author.'] }),
                     as: "Author",
                 },
-            ]
+            ],
+            order: [['createdAt', 'DESC']]
         });
         PostRecord.addScope("withoutEvent", {
             attributes: ['id', 'text', 'createdAt'],
@@ -240,7 +236,8 @@ module.exports = {
                     model: User.scope({ method: ['preview', 'Author.'] }),
                     as: "Author",
                 },
-            ]
+            ],
+            order: [['createdAt', 'DESC']]
         });
     }
 }
