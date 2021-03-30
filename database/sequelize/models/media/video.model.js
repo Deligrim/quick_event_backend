@@ -53,7 +53,7 @@ class Video extends Model {
             }/${md5group}/${namePath}`;
         await fsUtils.createDir(outLocalPath);
         let video = Video.build({});
-        video.setDataValue("path", envUtils.localToEncoded(outLocalPath));
+        //video.setDataValue("path", envUtils.localToEncoded(outLocalPath));
         video = await video.save({ transaction: options.transaction });
 
         const transJob = await videoQueue.add({
@@ -94,9 +94,10 @@ class Video extends Model {
                             transaction: options.transaction,
                         });
                     }
+                    video.setDataValue("path", envUtils.localToEncoded(outLocalPath));
                     video.status = "done";
                     video = await video.save({
-                        fields: ["status"],
+                        fields: ["status", "path"],
                         transaction: options.transaction,
                     });
                     if (cb) cb(null, video);
@@ -158,12 +159,12 @@ class Video extends Model {
                     });
                 else await delFile();
             } else {
-                console.log("Video null path", e);
+                console.log("Video null path");
             }
             //console.log(this);
             const thumb = await this.getThumbnail({ transaction });
             if (thumb) await thumb.destroyImage({ transaction, untilDir: 'videos' });
-            else console.log('thumb not exist');
+            else console.log('thumb null');
             await this.destroy({ transaction });
             if (!options || !options.transaction) await transaction.commit();
         } catch (e) {
@@ -200,7 +201,7 @@ module.exports = {
                 },
                 path: {
                     type: DataTypes.LINK,
-                    allowNull: false,
+                    allowNull: true,
 
                 },
                 status: {
