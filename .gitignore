@@ -7,7 +7,8 @@ yarn-error.log*
 lerna-debug.log*
 
 public/storage/images/
-
+public/storage/videos/
+temp/
 # Diagnostic reports (https://nodejs.org/api/report.html)
 report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json
 
@@ -104,3 +105,6 @@ dist
 
 # TernJS port file
 .tern-port
+
+*.mp4
+
