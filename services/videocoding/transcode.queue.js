@@ -53,7 +53,7 @@ videoQueue.process((job, done) => {
             //spawning preview also
             if (!thumbnail || !thumbnail.isGenerate) done();
             else {
-                const { groups: { dir, file, name, ext } } =
+                const { groups: { dir, name } } =
                     /(?<dir>.+?)\/?(?<file>(?<name>\w+)\.(?<ext>\w+))?$/.exec(outPath);
                 //console.log(groups);
                 ffmpeg(outPath).thumbnail({ timestamps: [1], folder: dir, filename: `${name}.png`, size: thumbnail.size })
@@ -61,8 +61,8 @@ videoQueue.process((job, done) => {
                         console.log('Thumbnail taken');
                         done(null, { tpath: `${dir}/${name}.png` });
                     })
-                    .on("error", (err, stdout, stderr) => {
-                        console.log(err, stdout, stderr);
+                    .on("error", (err, stdoutt, stderrr) => {
+                        console.log(err, stdoutt, stderrr);
 
                         done(new Error('Error get thumbnail'));
                     })

@@ -24,7 +24,9 @@ class User extends Model {
             else {
                 await user.setAvatar(
                     await Image.findOne({
-                        isDefault: true,
+                        where: {
+                            isDefault: true,
+                        },
                         transaction
                     }),
                     { transaction });
