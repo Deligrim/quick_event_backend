@@ -1,5 +1,5 @@
 const Queue = require("bull");
-const videoQueue = new Queue("video transcoding");
+const videoQueue = new Queue("video quevent transcoding", "redis://127.0.0.1:6379");
 var ffmpeg = require("fluent-ffmpeg");
 
 videoQueue.process((job, done) => {
