@@ -27,6 +27,11 @@ function defaultErrorHandler(res, error, customs) {
 
             return res && res.status(400).json({ success: false, code: "badrequest", msg: "Bad request", reason: Object.keys(error.errors).map(k => _.pick(error.errors[k], ['message', 'type', 'path', 'value'])) });
         }
+        else if (error.name == 'MulterError') {
+            console.error('\x1b[33mMulterError Validating!\x1b[0m');
+
+            return res && res.status(400).json({ success: false, code: "badrequest", msg: "Bad request", reason: { path: error.field, message: error.code } });
+        }
         else if (error.name == 'SyntaxError') {
             console.error('\x1b[33mJSON Syntax Error!\x1b[0m');
 
