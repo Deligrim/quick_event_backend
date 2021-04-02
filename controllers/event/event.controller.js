@@ -228,6 +228,7 @@ async function getPostsById(req, res, next) {
     }
     catch (e) { next(e); }
 }
+
 //admin
 async function owningEventById(req, res, next) {
     const { User, EventNote } = sequelize.models;
@@ -338,6 +339,34 @@ async function followEventById(req, res, next) {
     } catch (e) { return next(e) }
 }
 
+async function isFollowToEvent(req, res, next) {
+    const { User, EventNote } = sequelize.models;
+    const eventId = req.params.eventId;
+    const userId = req.params.userId;
+    if (!uuid.validate(eventId))
+        return res.status(400).json({
+            success: false,
+            msg: "eventId param is required uuid!"
+        });
+    if (!uuid.validate(userId))
+        return res.status(400).json({
+            success: false,
+            msg: "userId param is required uuid!"
+        });
+    try {
+        let user = await User.findByPk(userId);
+        let event = await EventNote.findByPk(eventId);
+        if (!user)
+            return res.status(404).json({ success: false, code: "notfound", msg: "User not found" });
+        if (!event)
+            return res.status(404).json({ success: false, code: "notfound", msg: "Event not found" });
+        return res.status(200).json({
+            success: true,
+            isFollow: await event.hasMembers(user)
+        });
+    } catch (e) { return next(e) }
+}
+
 async function stopFollowEventById(req, res) {
     const eventId = req.params.eventId;
     if (!uuid.validate(eventId))
@@ -385,5 +414,6 @@ module.exports = {
     stopOwningEventById,
     followEventById,
     stopFollowEventById,
+    isFollowToEvent,
     getPostsById
 };

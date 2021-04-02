@@ -14,6 +14,7 @@ const {
     stopOwningEventById,
     followEventById,
     stopFollowEventById,
+    isFollowToEvent,
     getPostsById
 } = require("../../controllers/event/event.controller");
 
@@ -28,6 +29,8 @@ router.get("/nearest", getNearestEvents);
 router.get("/:id", getEvent);
 router.get("/:id/members", getMembersById);
 router.get("/:id/posts", getPostsById);
+
+router.get('/:eventId/isFollowBy/:userId', isFollowToEvent);
 
 router.put('/:eventId/organizeBy/:id', auth.authAdmin, owningEventById);
 
