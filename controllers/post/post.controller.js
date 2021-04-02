@@ -77,10 +77,10 @@ async function createPost(req, res, next) {
 async function getPostList(req, res, next) {
     const { PostRecord } = sequelize.models;
     try {
-        const cities = await PostRecord.scope("clientView").findAll();
+        const posts = await PostRecord.scope("clientView").findAll();
         return res.status(200).json({
             success: true,
-            cities: cities || []
+            posts: posts || []
         });
     }
     catch (e) {
