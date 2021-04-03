@@ -362,6 +362,7 @@ module.exports = {
           },
 
         ],
+
         order: [sequelize.literal(`"Schedules.distance"`)],
 
       }
@@ -369,7 +370,8 @@ module.exports = {
     EventNote.addScope("micro", function (alias = "EventNote") {
       return {
         attributes: [
-          "id"
+          "id",
+          "title"
         ],
         include: [
           {
