@@ -85,6 +85,7 @@ function validate(instance, strictMode = true) {
     if (!strictMode) {
         schema = _.omit(schema, ['required'])
     }
+    console.log(instance);
     let result = validator.validate(instance, schema, { preValidateProperty, rewrite, allowUnknownAttributes: false, throwAll: true });
     if (!result.instance.schedule)
         return result;
