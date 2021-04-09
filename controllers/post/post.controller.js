@@ -35,7 +35,7 @@ async function createPost(req, res, next) {
         let eventId = null;
         let bindEvent = null;
         let authorId = null;
-        if (req.body.eventId != null) {
+        if (uuid.validate(req.body.eventId)) {
             bindEvent = await EventNote.findByPk(req.body.eventId);
             eventId = bindEvent.id;
             if (!bindEvent) {
