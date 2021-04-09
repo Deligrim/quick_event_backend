@@ -30,7 +30,7 @@ class Video extends Model {
             /* Sequelize */
             transaction: null,
             /* Validation */
-            maxDur: 60,
+            maxDur: 300,
             maxAspect: 2.5,
             /* Transcode */
             resolution: 720,
