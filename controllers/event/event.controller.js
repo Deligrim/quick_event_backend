@@ -10,21 +10,24 @@ const {
 const uuid = require('uuid');
 
 const uploadPhotos = jsUtils.promisify(
-    multer().array('photos', 15)
+    multer().fields([
+        { name: "photos", maxCount: 10 },
+        { name: "newPhotos", maxCount: 10 }
+    ])
 );
 
 async function createEvent(req, res, next) {
     const { EventNote } = sequelize.models;
     try {
         await uploadPhotos(req, res);
-        if (req.files.length < 1) {
+        if (!req.files['photos'] || req.files['photos'].length < 1) {
             throw new ValidationError(null, [
                 new ValidationErrorItem('There must be at least one photo', 'Validation error', 'photos')
             ]);
         }
         const payload = {
             ...eventSchema.validate(req.body).instance,
-            photos: req.files.map(x => x.buffer)
+            photos: req.files['photos'] && req.files['photos'].map(x => x.buffer)
         };
         console.log(payload);
         const eventNote =
@@ -51,7 +54,10 @@ async function updateEvent(req, res, next) {
             });
         const payload = {
             ...eventSchema.validate(req.body, false).instance,
-            photos: req.files.map(x => x.buffer),
+            photos: req.files['photos'] && req.files['photos'].map(x => x.buffer),
+            //must be json array of image paths
+            removeImageUrls: req.body.removePhotoUrls && JSON.parse(req.body.removePhotoUrls),
+            newImages: req.files['newPhotos'] && req.files['newPhotos'].map(x => x.buffer),
             id: req.params.id
         };
         await EventNote.updateEvent(payload, {});
@@ -96,8 +102,8 @@ async function getNearestEvents(req, res, next) {
                 msg: "log and lat query params is required!"
             });
         else {
-            log = +log;
-            lat = +lat;
+            log = +log; //cast to number
+            lat = +lat; //cast to number
         }
         const events = await EventNote.scope({
             method: ['orderPointDistance', [log, lat], lim]

@@ -144,24 +144,9 @@ module.exports = {
           defaultValue: false,
           type: DataTypes.BOOLEAN,
         },
-
-        // globalPath: {
-        //   type: DataTypes.VIRTUAL,
-        //   get() {
-        //     return envUtils.encodedToGlobal(this.path);
-        //   },
-        // },
         path: {
           type: DataTypes.LINK,
           allowNull: false,
-          // get() {
-          //   return this.getDataValue("path");
-          // },
-          // set(value) {
-          //   throw new Error(
-          //     "Do not try to set the `path` value directly, use methods!"
-          //   );
-          // },
         },
       },
       {

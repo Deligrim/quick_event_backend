@@ -20,6 +20,8 @@ const upload = jsUtils.promisify(
     multer({ storage }).fields([
         { name: "images", maxCount: 10 },
         { name: "videos", maxCount: 1 },
+        { name: "newImages", maxCount: 10 },
+        { name: "newVideos", maxCount: 1 },
     ])
 );
 function clearTempFiles(req) {
@@ -162,8 +164,12 @@ async function updatePostFromId(req, res, next) {
         const payload = {
             id: post.id,
             text: req.body.text,
+            removeImageUrls: req.body.removeImageUrls && JSON.parse(req.body.removeImageUrls),
+            removeVideoUrls: req.body.removeVideoUrls && JSON.parse(req.body.removeVideoUrls),
             images: req.files['images'],
             videos: req.files['videos'],
+            newImages: req.files['newImages'],
+            newVideos: req.files['newVideos'],
             eventId,
         };
         const updatedPost = await PostRecord.updatePostRecord(payload, {}, (e) => clearTempFiles(req));

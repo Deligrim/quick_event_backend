@@ -28,10 +28,10 @@ class EventNote extends Model {
         regionId: city.id
       }, { transaction });
       //create and link schedules
-      for (let i = 0; i < payload.schedule.length; i++) {
+      for (let schedule of payload.schedule) {
         await EventScheduleNote.createEventScheduleNote(
           {
-            ...payload.schedule[i],
+            ...schedule,
             eventId: newEvent.id
           }
           , { transaction });
@@ -108,13 +108,13 @@ class EventNote extends Model {
       await eventNote.save({ transaction });
       if (payload.schedule && payload.schedule.length > 0) {
         const oldSchedules = await eventNote.getSchedules({ transaction });
-        for (let i = 0; i < oldSchedules.length; i++) {
-          await oldSchedules[i].destroyEventScheduleNote({ transaction });
+        for (let oldSchedule of oldSchedules) {
+          await oldSchedule.destroyEventScheduleNote({ transaction });
         }
-        for (let i = 0; i < payload.schedule.length; i++) {
+        for (let schedule of payload.schedule) {
           await EventScheduleNote.createEventScheduleNote(
             {
-              ...payload.schedule[i],
+              ...schedule,
               eventId: eventNote.id
             }
             , { transaction });
@@ -140,11 +140,31 @@ class EventNote extends Model {
         }
         await eventNote.setTags(tags, { transaction });
       }
-      if (payload.photos && payload.photos.length > 0) {
-
+      if (payload.removeImageUrls && payload.removeImageUrls.length > 0) {
         const oldPhotos = await eventNote.getPhotos({ transaction });
-        for (let i = 0; i < oldPhotos.length; i++) {
-          await oldPhotos[i].destroyImage({ transaction, deleteDir: false });
+        if (oldPhotos.length - payload.removeImageUrls.length < 1) {
+          throw new ValidationError(null, [
+            new ValidationErrorItem('There must be at least one photo left', 'Validation error', 'photos')
+          ]);
+        }
+        for (let deletedUrl of payload.removeImageUrls) {
+          for (let photo of oldPhotos) {
+            if (photo.path == deletedUrl)
+              await photo.destroyImage({ transaction, deleteDir: false });
+          }
+        }
+        // re-number 
+        const leftPhotos = await eventNote.getPhotos({ transaction });
+        for (let i = 0; i < leftPhotos.length; i++) {
+          leftPhotos[i].Event_Gallery.index = i;
+          await leftPhotos[i].Event_Gallery.save({ transaction });
+        }
+        // console.log(JSON.stringify(leftPhotos));
+      }
+      if (payload.photos && payload.photos.length > 0) {
+        const oldPhotos = await eventNote.getPhotos({ transaction });
+        for (let oldPhoto of oldPhotos) {
+          await oldPhoto.destroyImage({ transaction, deleteDir: false });
         }
         for (let i = 0; i < payload.photos.length; i++) {
           const galleryPhoto = await Image.createImage(
@@ -162,6 +182,25 @@ class EventNote extends Model {
           await eventNote.addPhoto(galleryPhoto, { transaction, through: { index: i } });
         }
       }
+      if (payload.newImages && payload.newImages.length > 0) {
+        let count = await eventNote.countPhotos({ transaction });
+        for (let i = 0; i < payload.newImages.length; i++) {
+          const galleryPhoto = await Image.createImage(
+            payload.newImages[i],
+            payload.title,
+            'picture' + (count + i),
+            {
+              resizeArgs: {
+                withoutEnlargement: true,
+                height: 1024,
+                width: 1024,
+              },
+              saveOptions: { transaction }
+            });
+          await eventNote.addPhoto(galleryPhoto, { transaction, through: { index: i } });
+        }
+      }
+      //console.log(JSON.stringify(await eventNote.getPhotos({ transaction }))); //for test only
       if (!options.transaction)
         transaction.commit().catch(() => {/*rollback already call*/ });
       return eventNote;
@@ -176,16 +215,16 @@ class EventNote extends Model {
     var transaction = options && options.transaction || (await sequelize.transaction());
     try {
       const oldSchedules = await this.getSchedules({ transaction });
-      for (let i = 0; i < oldSchedules.length; i++) {
-        await oldSchedules[i].destroyEventScheduleNote({ transaction });
+      for (let oldSchedule of oldSchedules) {
+        await oldSchedule.destroyEventScheduleNote({ transaction });
       }
       const oldPhotos = await this.getPhotos({ transaction });
-      for (let i = 0; i < oldPhotos.length; i++) {
-        await oldPhotos[i].destroyImage({ transaction });
+      for (let photo of oldPhotos) {
+        await photo.destroyImage({ transaction });
       }
       const posts = await this.getPosts({ transaction });
-      for (let i = 0; i < posts.length; i++) {
-        await posts[i].destroyPostRecord({ transaction });
+      for (let post of posts) {
+        await post.destroyPostRecord({ transaction });
       }
       //todo : impl other delete
       await this.destroy({ transaction });

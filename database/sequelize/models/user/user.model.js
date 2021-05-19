@@ -52,21 +52,48 @@ class User extends Model {
                 ),
             ]);
         }
-        return await this.findByPk(decodedToken.id, {
-            attributes: ["id", "role", "firstName", "lastName"],
+        return this.findByPk(decodedToken.id, {
+            attributes: ["id", "role"],
         });
+        //return decodedToken;
     }
     generateAuthToken() {
-        const token = jwt.encode(
+        return jwt.encode(
             {
                 id: this.id,
                 iat: Date.now(),
                 exp: new Date().getTime() + /*10 days*/ 10 * 24 * 60 * 60 * 1000,
             },
             process.env.JWT_SECRET
-        )
-            .toString();
-        return token;
+        ).toString();
+    }
+
+    static async updateUser(payload, options) {
+        options = _.defaults(options, {
+            transaction: null
+        });
+        var transaction = options.transaction || (await sequelize.transaction());
+        try {
+            const user = await User.findByPk(payload.id, { transaction });
+            if (!user)
+                throw new ValidationError(null, [
+                    new ValidationErrorItem(
+                        "User not exist in database",
+                        null,
+                        "id",
+                        null
+                    ),
+                ]);
+            _.assign(user, _.pick(payload, ['firstName', 'lastName', 'role']));
+            await user.save({ transaction });
+            if (!options.transaction)
+                transaction.commit().catch(() => {/*rollback already call*/ });
+            return user;
+        }
+        catch (e) {
+            if (!options.transaction) await transaction.rollback();
+            throw e;
+        }
     }
     async setAvatarFromBuffer(imageBuffer, intransaction = null) {
         const { Image } = sequelize.models;
@@ -105,7 +132,9 @@ class User extends Model {
                 await avatar.destroyImage({ transaction })
             }
             await this.setAvatar(await Image.findOne({
-                isDefault: true
+                where: {
+                    isDefault: true
+                }
             }), { transaction })
 
             if (!intransaction) await transaction.commit();

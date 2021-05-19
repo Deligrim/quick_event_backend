@@ -19,7 +19,7 @@ router.get('/list', authAdmin, userController.getUsers);
 router.post('/create', authAdmin, upload.single('avatar'), mailAccountController.create);
 
 
-
+router.post('/update/:id', authAdmin, userController.updateUserInfo);
 router.delete('/:id', authAdmin, userController.removeUser);
 
 //router.use(authToken); // all routes below required authentication by token
@@ -31,6 +31,7 @@ router.get('/self/events', authToken, userController.getMyEvents);
 
 
 router.get('/self', authToken, userController.getSelf);
+router.post('/self/update', authToken, userController.updateUserInfo);
 router.post('/self/avatar', authToken, upload.single('avatar'), userController.setupAvatar);
 router.delete('/self/avatar', authToken, userController.removeAvatar);
 

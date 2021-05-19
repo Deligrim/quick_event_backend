@@ -61,10 +61,19 @@ class PostRecord extends Model {
                 });
             _.assign(post, _.pick(payload, ['text', 'eventId']));
             await post.save({ transaction });
+            if (payload.removeImageUrls && payload.removeImageUrls.length > 0) {
+                const oldImages = await post.getImages({ transaction });
+                for (let deletedUrl of payload.removeImageUrls) {
+                    for (let image of oldImages) {
+                        if (image.path == deletedUrl)
+                            await image.destroyImage({ transaction });
+                    }
+                }
+            }
             if (payload.images && payload.images.length > 0) {
                 const oldImages = await post.getImages({ transaction });
-                for (let i = 0; i < oldImages.length; i++) {
-                    await oldImages[i].destroyImage({ transaction });
+                for (let oldImage of oldImages) {
+                    await oldImage.destroyImage({ transaction });
                 }
                 for (let i = 0; i < payload.images.length; i++) {
                     const image = await Image.createImage(
@@ -82,10 +91,37 @@ class PostRecord extends Model {
                     await post.addImage(image, { transaction });
                 }
             }
+            if (payload.newImages && payload.newImages.length > 0) {
+                for (let i = 0; i < payload.newImages.length; i++) {
+                    const image = await Image.createImage(
+                        payload.newImages[i].path,
+                        post.id,
+                        'picture' + i,
+                        {
+                            resizeArgs: {
+                                withoutEnlargement: true,
+                                height: 1024,
+                                width: 1024,
+                            },
+                            saveOptions: { transaction }
+                        });
+                    await post.addImage(image, { transaction });
+                }
+            }
+
+            if (payload.removeVideoUrls && payload.removeVideoUrls.length > 0) {
+                const videos = await post.getVideos({ transaction });
+                for (let deletedUrl of payload.removeVideoUrls) {
+                    for (let video of videos) {
+                        if (video.path == deletedUrl)
+                            await video.destroyVideo({ transaction });
+                    }
+                }
+            }
             if (payload.videos) {
                 const videos = await post.getVideos({ transaction });
-                for (let i = 0; i < videos.length; i++) {
-                    await videos[i].destroyVideo({ transaction });
+                for (let video of videos) {
+                    await video.destroyVideo({ transaction });
                 }
                 if (payload.videos.length === 1) {
                     const uploadedVideo = await Video.createVideo(
@@ -98,6 +134,17 @@ class PostRecord extends Model {
                     await post.addVideo(uploadedVideo, { transaction });
                 }
             }
+            if (payload.newVideos && payload.newVideos.length === 1) {
+                const uploadedVideo = await Video.createVideo(
+                    payload.newVideos[0].path,
+                    { group: `postRecord${payload.eventId}`, name: `video-${0}` },
+                    (error, decodedVideo) => {
+                        longJobCallback(error);
+                    }
+                );
+                await post.addVideo(uploadedVideo, { transaction });
+            }
+
             if (!options.transaction)
                 transaction.commit().catch(() => {/*rollback already call*/ });
             return post;
@@ -111,12 +158,12 @@ class PostRecord extends Model {
         var transaction = options && options.transaction || (await sequelize.transaction());
         try {
             const images = await this.getImages({ transaction });
-            for (let i = 0; i < images.length; i++) {
-                await images[i].destroyImage({ transaction });
+            for (let image of images) {
+                await image.destroyImage({ transaction });
             }
             const videos = await this.getVideos({ transaction });
-            for (let i = 0; i < videos.length; i++) {
-                await videos[i].destroyVideo({ transaction });
+            for (let video of videos) {
+                await video.destroyVideo({ transaction });
             }
             await this.destroy({ transaction });
             if (!options || !options.transaction) await transaction.commit();

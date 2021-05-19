@@ -27,6 +27,17 @@ class EventCity extends Model {
 
     async destroyEventCity(options) {
         var transaction = options && options.transaction || (await sequelize.transaction());
+        const bindEvents = await this.getEvents({ transaction });
+        if (bindEvents && bindEvents.length > 0) {
+            throw new ValidationError(null, [
+                new ValidationErrorItem(
+                    "Сity has events attached. Destruction is prohibited.",
+                    null,
+                    "city.Events",
+                    bindEvents.map(x => x.id)
+                ),
+            ]);
+        }
         try {
             await this.destroy({ transaction });
             if (!options || !options.transaction) await transaction.commit();

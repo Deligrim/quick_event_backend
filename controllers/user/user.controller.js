@@ -3,6 +3,7 @@
 const { User } = sequelize.models;
 
 const _ = require('lodash');
+const uuid = require('uuid');
 
 async function getUsers(req, res, next) {
     //const { User } = sequelize.models;
@@ -65,7 +66,7 @@ async function getUserById(req, res, next) {
     const userId = req.params.id;
     try {
         if (req.user && userId == req.user.id) {
-            return await getSelf(req, res);
+            return getSelf(req, res);
         }
         let user = await User.scope('clientView').findByPk(userId);
         if (!user) return res.status(404).json({ success: false, code: "notfound", msg: "User not found" });
@@ -112,83 +113,45 @@ async function getUsersEvents(req, res, next) {
 }
 
 
-// async function getUserSubscriptionsById(req, res) {
-//     const userId = req.params.id;
-//     try {
-//         let user = await User.findOne({
-//             where: {
-//                 id: userId
-//             },
-//             include: {
-//                 model: User.scope({ method: ['preview', 'Subscriptions.'] }),
-//                 as: "Subscriptions",
-//                 through: {
-//                     attributes: [],
-//                 },
-//             },
-//         });
-//         if (!user)
-//             return res.status(404).json({
-//                 success: false,
-//                 code: "notfound",
-//                 msg: "User not found"
-//             });
-
-//         return res.status(200).json({
-//             success: true,
-//             subscriptionsCount: user.Subscriptions.length,
-//             subscriptions: user.Subscriptions
-//         });
-//     } catch (e) { return utils.defaultErrorHandler(res, e) }
-// }
-
-// async function getUserFollowersById(req, res) {
-//     const userId = req.params.id;
-//     try {
-
-//         let user = await User.findOne({
-//             where: {
-//                 id: userId
-//             },
-//             include: {
-//                 model: User.scope({ method: ['preview', 'Followers.'] }),
-//                 as: "Followers",
-//                 through: {
-//                     attributes: []
-//                 }
-//             },
-
-//         });
-//         if (!user)
-//             return res.status(404).json({
-//                 success: false,
-//                 code: "notfound",
-//                 msg: "User not found"
-//             });
-//         return res.status(200).json({
-//             success: true,
-//             followersCount: user.Followers.length,
-//             followers: user.Followers
-//         });
-//     } catch (e) { return utils.defaultErrorHandler(res, e) }
-// }
+async function updateUserInfo(req, res, next) {
+    try {
+        let id = req.params.id;
+        if (req.user && req.user.role !== "admin") {
+            id = req.user.id;
+            delete req.body.role;
+        }
+        if (!uuid.validate(id))
+            return res.status(400).json({
+                success: false,
+                msg: "id param is required uuid!"
+            });
+        await User.updateUser({ id, ...req.body }, {});
+        return res.status(200).json({
+            success: true
+        });
+    }
+    catch (e) {
+        next(e);
+    }
+}
 
 async function setupAvatar(req, res, next) {
     try {
         if (req.file && req.file.buffer) {
             var dbUser = await User.findByPk(req.user.id);
             await dbUser.setAvatarFromBuffer(req.file.buffer);
-            return await getSelf(req, res);
+            return getSelf(req, res);
         }
         else return res.status(400).json({ success: false, code: "badrequest", msg: "Image file is require!" });
     }
     catch (e) { next(e); }
 }
+
 async function removeAvatar(req, res, next) {
     try {
         var dbUser = await User.findByPk(req.user.id);
         await dbUser.deleteAvatar();
-        return await getSelf(req, res);
+        return getSelf(req, res);
     }
     catch (e) { next(e); }
 }
@@ -203,4 +166,5 @@ module.exports = {
     removeUser,
     getMyEvents,
     getUsersEvents,
+    updateUserInfo
 };
