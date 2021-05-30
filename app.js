@@ -8,6 +8,7 @@
 
     console.log("Temp path: " + process.env.TEMP_PATH);
     global.sequelize = require('./database/sequelize');
+    global.firebase = require('./firebase');
 
     const express = require("express");
     const app = express();

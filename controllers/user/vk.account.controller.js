@@ -90,9 +90,11 @@ async function authentication(req, res, next) {
 
         await transaction.commit();
         const jwt = await user.generateAuthToken();
+        const firebaseToken = await user.generateFirebaseToken();
         res.json({
             success: true,
             token: jwt,
+            firebaseToken,
             userId: user.id,
             firstAuth
         });

@@ -32,6 +32,8 @@ async function createEvent(req, res, next) {
         console.log(payload);
         const eventNote =
             await EventNote.createEvent(payload, {});
+
+
         return res.status(200).json({
             success: true,
             newEventId: eventNote.id
@@ -61,8 +63,10 @@ async function updateEvent(req, res, next) {
             id: req.params.id
         };
         await EventNote.updateEvent(payload, {});
+        const updatedEventNote = await EventNote.scope("clientView").findByPk(req.params.id);
         return res.status(200).json({
-            success: true
+            success: true,
+            updatedEventNote
         });
     } catch (e) {
         console.log(e);
@@ -159,6 +163,7 @@ async function deleteEvent(req, res, next) {
             });
         const id = req.params.id;
         const eventNote = await EventNote.findByPk(id);
+
         if (eventNote) {
             await eventNote.destroyEvent();
             return res.status(200).json({
@@ -225,7 +230,11 @@ async function getPostsById(req, res, next) {
                 code: "notfound",
                 msg: "Event not found"
             });
-        const posts = await event.getPosts({ scope: 'withoutEvent' });
+        let scope = ['withoutEvent'];
+        if (req.user?.id) {
+            scope.push({ method: ['withStat', req.user.id] });
+        }
+        const posts = await event.getPosts({ scope });
         return res.status(200).json({
             success: true,
             postsCount: posts.length,
@@ -266,6 +275,11 @@ async function owningEventById(req, res, next) {
                 msg: `Already follows the event!`
             });
         }
+        //add to event chat room member in firestore
+        const roomRef = firebase.firestore().collection('rooms').doc(eventId);
+        await roomRef.update({
+            userIds: firebase.firestore.FieldValue.arrayUnion(userId)
+        });
         await event.addMember(user);
         return res.status(200).json({
             success: true
@@ -309,6 +323,11 @@ async function stopOwningEventById(req, res) {
                 msg: `Already not following!`
             });
         }
+        //remove from event chat room member in firestore
+        const roomRef = firebase.firestore().collection('rooms').doc(eventId);
+        await roomRef.update({
+            userIds: firebase.firestore.FieldValue.arrayRemove(userId)
+        });
         await event.removeMember(user);
         return res.status(200).json({
             success: true
@@ -339,6 +358,11 @@ async function followEventById(req, res, next) {
             });
         }
         await event.addMember(myself);
+        //add to event chat room member in firestore
+        const roomRef = firebase.firestore().collection('rooms').doc(eventId);
+        await roomRef.update({
+            userIds: firebase.firestore.FieldValue.arrayUnion(req.user.id)
+        });
         return res.status(200).json({
             success: true
         });
@@ -397,6 +421,11 @@ async function stopFollowEventById(req, res) {
                 msg: `Already not following!`
             });
         }
+        const roomRef = firebase.firestore().collection('rooms').doc(eventId);
+        await roomRef.update({
+            userIds: firebase.firestore.FieldValue.arrayRemove(req.user.id)
+        });
+        //remove from event chat room member in firestore
         await event.removeMember(myself);
         return res.status(200).json({
             success: true
@@ -404,9 +433,95 @@ async function stopFollowEventById(req, res) {
     } catch (e) { return next(e) }
 }
 
-// async function getOrganizatorsById(req, res, next) {
 
-// }
+// Rating region:
+async function rateEventById(req, res, next) {
+    const { User, EventNote } = sequelize.models;
+    const eventId = req.params.eventId;
+    const ratingValue = req.params.rating;
+    var transaction = await sequelize.transaction();
+    if (!uuid.validate(eventId))
+        return res.status(400).json({
+            success: false,
+            msg: "eventId param is required uuid!"
+        });
+    if (ratingValue < 1 || ratingValue > 5) {
+        return res.status(400).json({
+            success: false,
+            msg: "rating param must be between from 1 to 5!"
+        });
+    }
+    try {
+        let myself = await User.findByPk(req.user.id, { transaction });
+        let event = await EventNote.findByPk(eventId, { transaction });
+        if (myself.role != "user")
+            return res.status(409).json({ success: false, code: "conflict", msg: "User role is not user" });
+        if (!event)
+            return res.status(404).json({ success: false, code: "notfound", msg: "Event not found" });
+
+        const schedules = await event.getSchedules({ transaction });
+        let endedAtLeastOne = false;
+        for (const schedule of schedules) {
+            if (schedule.dateTo < new Date()) {
+                endedAtLeastOne = true;
+                break;
+            }
+        }
+        if (!endedAtLeastOne)
+            return res.status(409).json({ success: false, code: "conflict", msg: "Event must be completed once in order to be rated" });
+        if (!(await event.hasMember(myself))) {
+            return res.status(409).json({
+                success: false,
+                code: "conflict",
+                msg: `User must be a member of event!`
+            });
+        }
+        if ((await event.hasRating(myself, { transaction }))) {
+            await event.removeRating(myself, { transaction });
+        }
+        await event.addRating(myself, { transaction, through: { rating: ratingValue } });
+        transaction.commit().catch(() => {/*rollback already call*/ });
+        return res.status(200).json({
+            success: true
+        });
+    } catch (e) {
+        await transaction.rollback();
+        return next(e)
+    }
+}
+
+async function isRateOfEvent(req, res, next) {
+    const { User, EventNote } = sequelize.models;
+    const eventId = req.params.eventId;
+    const userId = req.user.id;
+    if (!uuid.validate(eventId))
+        return res.status(400).json({
+            success: false,
+            msg: "eventId param is required uuid!"
+        });
+    if (!uuid.validate(userId))
+        return res.status(400).json({
+            success: false,
+            msg: "userId param is required uuid!"
+        });
+    try {
+        let user = await User.findByPk(userId);
+        let event = await EventNote.findByPk(eventId);
+        if (!user)
+            return res.status(404).json({ success: false, code: "notfound", msg: "User not found" });
+        if (!event)
+            return res.status(404).json({ success: false, code: "notfound", msg: "Event not found" });
+
+        const ratings = await event.getRatings({ where: { id: user.id } });
+        console.log(ratings);
+        return res.status(200).json({
+            success: true,
+            isRated: ratings.length > 0 || false,
+            rating: (ratings.length > 0 && ratings[0].Event_Ratings.rating) || 0
+        });
+    } catch (e) { return next(e) }
+}
+// End rating region
 
 module.exports = {
     createEvent,
@@ -421,5 +536,7 @@ module.exports = {
     followEventById,
     stopFollowEventById,
     isFollowToEvent,
-    getPostsById
+    getPostsById,
+    rateEventById,
+    isRateOfEvent
 };

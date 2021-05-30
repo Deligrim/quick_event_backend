@@ -72,9 +72,11 @@ async function login(req, res, next) {
                 msg: "Authentication failed",
             });
         const token = await account.User.generateAuthToken();
+        const firebaseToken = await account.User.generateFirebaseToken();
         return res.json({
             success: true,
-            token: `${token}`,
+            token: token,
+            firebaseToken,
             userId: account.UserId,
             userRole: account.User.role
         });

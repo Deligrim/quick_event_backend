@@ -39,5 +39,6 @@ for (const model of modelDefiners) {
   model.assoc(sequelize);
 }
 if (process.argv.find((a) => a == "reinit")) require("./reinit")(sequelize); //force reinstance table and fill init data
+else if (process.argv.find((a) => a == "alter")) require("./alterinit")(sequelize); //smooth alter tables
 
 module.exports = sequelize;

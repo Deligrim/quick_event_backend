@@ -31,6 +31,13 @@ class User extends Model {
                     }),
                     { transaction });
             }
+            await firebase.auth().createUser({ uid: user.id });
+            const firestoreUser = {
+                avatarUrl: (await user.getAvatar({ transaction })).path,
+                firstName: user.firstName,
+                lastName: user.lastName
+            };
+            await firebase.firestore().collection('users').doc(user.id).set(firestoreUser);
             return user;
         }
         catch (e) {
@@ -67,7 +74,9 @@ class User extends Model {
             process.env.JWT_SECRET
         ).toString();
     }
-
+    async generateFirebaseToken() {
+        return firebase.auth().createCustomToken(this.id);
+    }
     static async updateUser(payload, options) {
         options = _.defaults(options, {
             transaction: null
@@ -86,8 +95,15 @@ class User extends Model {
                 ]);
             _.assign(user, _.pick(payload, ['firstName', 'lastName', 'role']));
             await user.save({ transaction });
+            const firestoreUser = {
+                avatarUrl: (await user.getAvatar({ transaction })).path,
+                firstName: user.firstName,
+                lastName: user.lastName
+            };
+            await firebase.firestore().collection('users').doc(user.id).set(firestoreUser);
             if (!options.transaction)
                 transaction.commit().catch(() => {/*rollback already call*/ });
+
             return user;
         }
         catch (e) {
@@ -115,6 +131,12 @@ class User extends Model {
                 }),
                 { transaction }
             );
+            const firestoreUser = {
+                avatarUrl: (await this.getAvatar({ transaction })).path,
+                firstName: this.firstName,
+                lastName: this.lastName
+            };
+            await firebase.firestore().collection('users').doc(this.id).set(firestoreUser);
             if (!intransaction) await transaction.commit();
         } catch (error) {
             if (!intransaction) await transaction.rollback();
@@ -137,6 +159,12 @@ class User extends Model {
                 }
             }), { transaction })
 
+            const firestoreUser = {
+                avatarUrl: (await this.getAvatar({ transaction })).path,
+                firstName: this.firstName,
+                lastName: this.lastName
+            };
+            await firebase.firestore().collection('users').doc(this.id).set(firestoreUser);
             if (!intransaction) await transaction.commit();
         } catch (error) {
             if (!intransaction) await transaction.rollback();
@@ -151,7 +179,13 @@ class User extends Model {
             if (avatar && !avatar.isDefault) {
                 await avatar.destroyImage({ transaction })
             }
+            try {
+                await firebase.auth().deleteUser(this.id);
+                await firebase.firestore().collection('users').doc(this.id).delete();
+            }
+            catch (e) {
 
+            }
             await this.destroy({ transaction });
             if (!options || !options.transaction) await transaction.commit();
         }

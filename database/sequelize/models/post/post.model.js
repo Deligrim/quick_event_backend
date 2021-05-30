@@ -186,6 +186,10 @@ class PostRecord extends Model {
                 Images: attributes.Images,
                 Videos: attributes.Videos
             }
+            if (attributes.Likes) {
+                attributes.isLiked = attributes.Likes.length > 0;
+                delete attributes.Likes;
+            }
             delete attributes.text;
             delete attributes.Images;
             delete attributes.Videos;
@@ -205,7 +209,7 @@ module.exports = {
             },
             text: {
                 allowNull: false,
-                type: DataTypes.STRING,
+                type: DataTypes.TEXT,
                 validate: {
                     len: [0, 1400]
                 }
@@ -217,9 +221,10 @@ module.exports = {
         });
         sequelize.define('PostRecord_Images', {}, { timestamps: false });
         sequelize.define('PostRecord_Videos', {}, { timestamps: false });
+        sequelize.define('PostRecord_Likes', {}, { timestamps: false });
     },
     assoc: (sequelize) => {
-        const { User, EventNote, Image, Video, PostRecord_Images, PostRecord_Videos } = sequelize.models;
+        const { User, EventNote, Image, Video, PostRecord_Images, PostRecord_Videos, PostRecord_Likes } = sequelize.models;
         PostRecord.belongsTo(EventNote, {
             as: 'Event',
             foreignKey: 'eventId'
@@ -240,8 +245,34 @@ module.exports = {
             foreignKey: "PostRecordId",
             otherKey: "VideoId",
         });
+        PostRecord.belongsToMany(User, {
+            as: "Likes", //Лайки на пост
+            through: PostRecord_Likes,
+            foreignKey: "PostRecordId",
+            otherKey: "UserId",
+        });
+        PostRecord.addScope("withStat", function (userId) {
+            return {
+                include: {
+                    model: User,
+                    as: "Likes",
+                    attributes: ['id'],
+                    through: {
+                        attributes: [],
+                        where: { UserId: userId }
+                    },
+                    required: false,
+                    //right: true
+                },
+            }
+        });
         PostRecord.addScope("clientView", {
-            attributes: ['id', 'text', 'createdAt'],
+            attributes: [
+                'id',
+                'text',
+                'createdAt',
+                [sequelize.literal(`(SELECT COUNT(*) FROM "PostRecord_Likes" WHERE "PostRecord_Likes"."PostRecordId" = "PostRecord"."id")`), 'likesCount']
+            ],
             include: [
                 {
                     model: EventNote.scope({ method: ['micro', 'Event'] }),
@@ -266,7 +297,12 @@ module.exports = {
             order: [['createdAt', 'DESC']]
         });
         PostRecord.addScope("withoutEvent", {
-            attributes: ['id', 'text', 'createdAt'],
+            attributes: [
+                'id',
+                'text',
+                'createdAt',
+                [sequelize.literal(`(SELECT COUNT(*) FROM "PostRecord_Likes" WHERE "PostRecord_Likes"."PostRecordId" = "PostRecord"."id")`), 'likesCount']
+            ],
             include: [
                 {
                     model: Image.scope("onlyPath"),

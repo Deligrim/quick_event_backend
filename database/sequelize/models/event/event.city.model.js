@@ -39,6 +39,7 @@ class EventCity extends Model {
             ]);
         }
         try {
+
             await this.destroy({ transaction });
             if (!options || !options.transaction) await transaction.commit();
         }

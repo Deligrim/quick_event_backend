@@ -63,6 +63,13 @@ class EventNote extends Model {
         }
         await newEvent.addTag(tag, { transaction });
       }
+      const chatRoom = {
+        imageUrl: (await newEvent.getPhotos({ transaction }))[0]?.path,
+        name: newEvent.title,
+        type: "group",
+        userIds: []
+      };
+      await firebase.firestore().collection('rooms').doc(newEvent.id).set(chatRoom);
       if (!options.transaction) transaction.commit().catch(() => {/*rollback already call*/ });
       return newEvent;
     }
@@ -201,8 +208,11 @@ class EventNote extends Model {
         }
       }
       //console.log(JSON.stringify(await eventNote.getPhotos({ transaction }))); //for test only
+
       if (!options.transaction)
         transaction.commit().catch(() => {/*rollback already call*/ });
+
+
       return eventNote;
     }
     catch (e) {
@@ -226,6 +236,8 @@ class EventNote extends Model {
       for (let post of posts) {
         await post.destroyPostRecord({ transaction });
       }
+      console.log("delete from firestore");
+      await firebase.firestore().collection('rooms').doc(this.id).delete();
       //todo : impl other delete
       await this.destroy({ transaction });
       if (!options || !options.transaction) await transaction.commit();
@@ -289,11 +301,12 @@ module.exports = {
         timestamps: false
       }
     );
+    sequelize.define('Event_Ratings', { rating: DataTypes.INTEGER }, { timestamps: false });
     sequelize.define('Event_Gallery', { index: DataTypes.INTEGER }, { timestamps: false });
     sequelize.define('Event_Tags', {}, { timestamps: false });
   },
   assoc: (sequelize) => {
-    const { User, Image, Event_Members, Event_Gallery, EventScheduleNote, EventCity, Tag, Event_Tags, PostRecord } = sequelize.models;
+    const { User, Image, Event_Members, Event_Gallery, EventScheduleNote, EventCity, Event_Ratings, Tag, Event_Tags, PostRecord } = sequelize.models;
 
     // EventNote.belongsTo(Image, {
     //   as: 'thumb',
@@ -317,6 +330,12 @@ module.exports = {
       through: Event_Gallery,
       as: 'Photos' // Промо-фотографии события
     });
+    EventNote.belongsToMany(User, {
+      as: "Ratings", //Теги события
+      through: Event_Ratings,
+      foreignKey: "EventId",
+      otherKey: "UserId",
+    });
     EventNote.belongsToMany(Tag, {
       as: "Tags", //Теги события
       through: Event_Tags,
@@ -338,6 +357,7 @@ module.exports = {
           "description",
           [sequelize.literal(`(SELECT COUNT(*) FROM "Event_Members" WHERE "Event_Members"."EventId" = "${alias}"."id")`),
             'membersCount'],
+          [sequelize.literal(`COALESCE((SELECT AVG(cast("Event_Ratings"."rating" as float)) FROM "Event_Ratings" WHERE "Event_Ratings"."EventId" = "${alias}"."id"),0.0)`), 'rating'],
         ],
         include: [
           {
@@ -370,7 +390,7 @@ module.exports = {
           "id",
           "title",
           [sequelize.literal(`(SELECT COUNT(*) FROM "Event_Members" WHERE "Event_Members"."EventId" = "${alias}"."id")`), 'membersCount'],
-          //[sequelize.literal(`("Schedules"."location"::point <@> '(${coors[0]}, ${coors[1]})')::numeric * 1.609344`), 'distance']
+          [sequelize.literal(`COALESCE((SELECT AVG(cast("Event_Ratings"."rating" as float)) FROM "Event_Ratings" WHERE "Event_Ratings"."EventId" = "${alias}"."id"),0.0)`), 'rating'],
         ],
         include: [
           {
@@ -434,6 +454,7 @@ module.exports = {
           "title",
           [sequelize.literal(`(SELECT COUNT(*) FROM "Event_Members" WHERE "Event_Members"."EventId" = "${alias}"."id")`),
             'membersCount'],
+          [sequelize.literal(`COALESCE((SELECT AVG(cast("Event_Ratings"."rating" as float)) FROM "Event_Ratings" WHERE "Event_Ratings"."EventId" = "${alias}"."id"),0.0)`), 'rating'],
         ],
         include: [
           {
@@ -444,12 +465,7 @@ module.exports = {
             model: Image.scope("onlyPath"),
             attributes: ['path'],
             as: "Photos",
-            through: {
-              attributes: [],
-              where: {
-                index: 0
-              }
-            }
+            through: { attributes: [], where: { index: 0 } }
           },
           {
             model: Tag,

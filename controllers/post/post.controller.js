@@ -79,7 +79,11 @@ async function createPost(req, res, next) {
 async function getPostList(req, res, next) {
     const { PostRecord } = sequelize.models;
     try {
-        const posts = await PostRecord.scope("clientView").findAll();
+        let scope = ['clientView'];
+        if (req.user?.id) {
+            scope.push({ method: ['withStat', req.user.id] });
+        }
+        const posts = await PostRecord.scope(scope).findAll();
         return res.status(200).json({
             success: true,
             posts: posts || []
@@ -97,7 +101,11 @@ async function getPostFromId(req, res, next) {
                 success: false,
                 msg: "id param is required!"
             });
-        const post = await PostRecord.scope("clientView").findByPk(req.params.id);
+        let scope = ['clientView'];
+        if (req.user?.id) {
+            scope.push({ method: ['withStat', req.user.id] });
+        }
+        const post = await PostRecord.scope(scope).findByPk(req.params.id);
         if (post)
             return res.status(200).json({
                 success: true,
@@ -172,10 +180,12 @@ async function updatePostFromId(req, res, next) {
             newVideos: req.files['newVideos'],
             eventId,
         };
-        const updatedPost = await PostRecord.updatePostRecord(payload, {}, (e) => clearTempFiles(req));
+        await PostRecord.updatePostRecord(payload, {}, (e) => clearTempFiles(req));
+        const updatedPost = await PostRecord.scope("clientView").findByPk(req.params.id);
         if (updatedPost)
             return res.status(200).json({
-                success: true
+                success: true,
+                updatedPost
             });
         return res.status(404).json({
             success: false,
@@ -223,10 +233,73 @@ async function deletePostFromId(req, res, next) {
     }
 }
 
+async function likePost(req, res, next) {
+    const { PostRecord, User } = sequelize.models;
+    const postid = req.params.id;
+    if (!uuid.validate(postid)) {
+        return res.status(400).json({
+            success: false,
+            msg: "postid param is required uuid!"
+        });
+    }
+    try {
+        let myself = await User.findByPk(req.user.id);
+        let post = await PostRecord.findByPk(postid);
+        if (!post)
+            return res.status(404).json({ success: false, code: "notfound", msg: "Post not found" });
+        if ((await post.hasLike(myself))) {
+            return res.status(409).json({
+                success: false,
+                code: "conflict",
+                msg: `Already liked the post!`
+            });
+        }
+        await post.addLike(myself);
+        return res.status(200).json({
+            success: true
+        });
+    }
+    catch (e) {
+        next(e);
+    }
+}
+async function unlikePost(req, res, next) {
+    const { PostRecord, User } = sequelize.models;
+    const postid = req.params.id;
+    if (!uuid.validate(postid)) {
+        return res.status(400).json({
+            success: false,
+            msg: "postid param is required uuid!"
+        });
+    }
+    try {
+        let myself = await User.findByPk(req.user.id);
+        let post = await PostRecord.findByPk(postid);
+        if (!post)
+            return res.status(404).json({ success: false, code: "notfound", msg: "Post not found" });
+        if (!(await post.hasLike(myself))) {
+            return res.status(409).json({
+                success: false,
+                code: "conflict",
+                msg: `Already unliked the post!`
+            });
+        }
+        await post.removeLike(myself);
+        return res.status(200).json({
+            success: true
+        });
+    }
+    catch (e) {
+        next(e);
+    }
+}
+
 module.exports = {
     createPost,
     getPostFromId,
     getPostList,
     updatePostFromId,
     deletePostFromId,
+    unlikePost,
+    likePost
 };

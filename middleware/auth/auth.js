@@ -54,15 +54,29 @@ async function authToken(req, res, next) {
         return next();
     } catch (error) {
         return utils.defaultErrorHandler(res, error);
-        // return utils.defaultErrorHandler(res, error, [{
-        //     name: "JwtDecodeError",
-        //     handle: ()=> res.status(403).json(
-        //         {
-        //             success: false,
-        //             code: "token_not_found",
-        //             msg: "Bad token provided."
-        //         })
-        // }]);
+    }
+}
+
+async function nonStrictAuthToken(req, res, next) {
+
+    const token = getToken(req.headers);
+    try {
+        if (!token) {
+            return next(); //skip auth
+        }
+        const user = (await sequelize.models.User.findByToken(token));
+
+        if (!user) {
+            return res.status(403).send({
+                success: false,
+                code: "id_not_found",
+                msg: "Authentication failed. User not exist."
+            });
+        }
+        req.user = user.toJSON(); //dont use sequelize with this instance;
+        return next();
+    } catch (error) {
+        return utils.defaultErrorHandler(res, error);
     }
 }
 
@@ -76,5 +90,5 @@ async function organizatorGateway(req, res, next) {
     else return next();
 }
 
-module.exports = { organizatorGateway, authToken, authAdmin };
+module.exports = { organizatorGateway, authToken, nonStrictAuthToken, authAdmin };
 
