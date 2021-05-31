@@ -64,6 +64,11 @@ async function nonStrictAuthToken(req, res, next) {
         if (!token) {
             return next(); //skip auth
         }
+        if (token == process.env.ADMIN_TOKEN) {
+            req.user = { role: "admin" }
+            return next();
+        }
+
         const user = (await sequelize.models.User.findByToken(token));
 
         if (!user) {
