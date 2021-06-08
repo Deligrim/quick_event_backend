@@ -95,12 +95,18 @@ class User extends Model {
                 ]);
             _.assign(user, _.pick(payload, ['firstName', 'lastName', 'role']));
             await user.save({ transaction });
-            const firestoreUser = {
-                avatarUrl: (await user.getAvatar({ transaction })).path,
-                firstName: user.firstName,
-                lastName: user.lastName
-            };
-            await firebase.firestore().collection('users').doc(user.id).set(firestoreUser);
+            if (payload.avatar && payload.avatar.buffer) {
+                console.log("update user avatar");
+                await user.setAvatarFromBuffer(payload.avatar.buffer, transaction);
+            }
+            else {
+                const firestoreUser = {
+                    avatarUrl: (await user.getAvatar({ transaction })).path,
+                    firstName: user.firstName,
+                    lastName: user.lastName
+                };
+                await firebase.firestore().collection('users').doc(user.id).set(firestoreUser);
+            }
             if (!options.transaction)
                 transaction.commit().catch(() => {/*rollback already call*/ });
 
@@ -201,35 +207,16 @@ module.exports = {
     init: (sequelize) => {
         User.init(
             {
-                // Model attributes are defined here
                 id: {
                     allowNull: false,
                     primaryKey: true,
                     type: DataTypes.UUID,
                     defaultValue: DataTypes.UUIDV4
                 },
-                // username: {
-                //     allowNull: false,
-                //     type: DataTypes.STRING,
-                //     unique: {
-                //         msg: "This username is already exist",
-                //     },
-                //     validate: {
-                //         // We require usernames to have length of at least 3, and
-                //         // only use letters, numbers and underscores.
-                //         is: {
-                //             args: /^\w{3,25}$/,
-                //             msg:
-                //                 "Username must be at least 3 characters and only use letters, numbers and underscores",
-                //         },
-                //     },
-                // },
                 firstName: {
                     allowNull: false,
                     type: DataTypes.STRING,
                     validate: {
-                        // We require usernames to have length of at least 3, and
-                        // only use letters, numbers and underscores.
                         is: {
                             args: /^([a-zA-Z]|[А-Яа-яёË]){2,25}$/,
                             msg:
@@ -241,8 +228,6 @@ module.exports = {
                     allowNull: false,
                     type: DataTypes.STRING,
                     validate: {
-                        // We require usernames to have length of at least 3, and
-                        // only use letters, numbers and underscores.
                         is: {
                             args: /^([a-zA-Z]|[А-Яа-яёË]){2,25}$/,
                             msg:
@@ -263,9 +248,8 @@ module.exports = {
                 },
             },
             {
-                // Other model options go here
-                sequelize, // We need to pass the connection instance
-                modelName: "User", // We need to choose the model 
+                sequelize,
+                modelName: "User",
             }
         );
         sequelize.define('Event_Members', {}, { timestamps: false });

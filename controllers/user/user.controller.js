@@ -125,7 +125,8 @@ async function updateUserInfo(req, res, next) {
                 success: false,
                 msg: "id param is required uuid!"
             });
-        await User.updateUser({ id, ...req.body }, {});
+        await User.updateUser({ id, ...req.body, avatar: req.file }, {});
+
         return res.status(200).json({
             success: true
         });
@@ -133,18 +134,6 @@ async function updateUserInfo(req, res, next) {
     catch (e) {
         next(e);
     }
-}
-
-async function setupAvatar(req, res, next) {
-    try {
-        if (req.file && req.file.buffer) {
-            var dbUser = await User.findByPk(req.user.id);
-            await dbUser.setAvatarFromBuffer(req.file.buffer);
-            return getSelf(req, res);
-        }
-        else return res.status(400).json({ success: false, code: "badrequest", msg: "Image file is require!" });
-    }
-    catch (e) { next(e); }
 }
 
 async function removeAvatar(req, res, next) {
@@ -161,7 +150,6 @@ module.exports = {
     getSelf,
     getUserById,
     getUsers,
-    setupAvatar,
     removeAvatar,
     removeUser,
     getMyEvents,
